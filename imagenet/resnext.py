@@ -103,7 +103,7 @@ class NeXtBottleneck(nn.Module):
     expansion = 2
 
     def __init__(self, inplanes, planes, stride=1, groups=32 , downsample=None):
-        super(Bottleneck, self).__init__()
+        super(NeXtBottleneck, self).__init__()
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride, groups=32,
@@ -202,7 +202,7 @@ class ResNeXt(nn.Module):
 
     def __init__(self, block, layers, num_classes=1000):
         self.inplanes = 64
-        super(ResNet, self).__init__()
+        super(ResNeXt, self).__init__()
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
                                bias=False)
         self.bn1 = nn.BatchNorm2d(64)
