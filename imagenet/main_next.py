@@ -14,6 +14,7 @@ import torchvision.datasets as datasets
 import torchvision.models as models
 
 import resnext
+import meta_model.FractAllNeXt
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
@@ -23,17 +24,18 @@ model_names = sorted(name for name in models.__dict__
 resnext_models = {'resnext50':resnext.resnext50,
                   'resnext101':resnext.resnext101,
                   'resnext152':resnext.resnext152,
-                  'resnet50':resnext.resnet50}
+                  'resnet50':resnext.resnet50,
+                  'faresnext50':meta_model.FractAllNeXt.faresnext50}
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
 
-parser.add_argument('--arch', '-a', metavar='ARCH', default='resnext50',
+parser.add_argument('--arch', '-a', metavar='ARCH', default='faresnext50',
                     choices=resnext_models.keys(),
                     help='model architecture: ' +
                         ' | '.join(resnext_models.keys()) +
-                        ' (default: resnext50)')
+                        ' (default: faresnext50)')
 
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
