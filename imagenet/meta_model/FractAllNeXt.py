@@ -391,6 +391,15 @@ def faresnext101(pretrained=False, **kwargs):
 
     return model
 
+def faresnext101v2(pretrained=False, **kwargs):
+    """Constructs a ResNeXt-101 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    model = FAResNeXt(FANeXtBottleneckV2, [3, 4, 23, 3], **kwargs)
+
+    return model
+
 
 def faresnext152(pretrained=False, **kwargs):
     """Constructs a ResNeXt-151 model.
