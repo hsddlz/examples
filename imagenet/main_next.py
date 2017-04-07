@@ -25,7 +25,8 @@ resnext_models = {'resnext50':resnext.resnext50,
                   'resnext101':resnext.resnext101,
                   'resnext152':resnext.resnext152,
                   'resnet50':resnext.resnet50,
-                  'faresnext50':meta_model.FractAllNeXt.faresnext50}
+                  'faresnext50':meta_model.FractAllNeXt.faresnext50,
+                  'faresnext50v2':meta_model.FractAllNeXt.faresnext50v2}
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
@@ -39,7 +40,7 @@ parser.add_argument('--arch', '-a', metavar='ARCH', default='faresnext50',
 
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
-parser.add_argument('--epochs', default=70, type=int, metavar='N',
+parser.add_argument('--epochs', default=100, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
@@ -275,7 +276,7 @@ class AverageMeter(object):
 
 def adjust_learning_rate(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 10 every 20 epochs"""
-    lr = args.lr * (0.1 ** (epoch // 20))
+    lr = args.lr * (0.1 ** (epoch // 25))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
