@@ -27,7 +27,9 @@ resnext_models = {'resnext50':resnext.resnext50,
                   'resnet50':resnext.resnet50,
                   'faresnext50':meta_model.FractAllNeXt.faresnext50,
                   'faresnext50v2':meta_model.FractAllNeXt.faresnext50v2,
-                  'faresnext101v2':meta_model.FractAllNeXt.faresnext101v2}
+                  'faresnext50v3':meta_model.FractAllNeXt.faresnext50v3,
+                  'faresnext101v2':meta_model.FractAllNeXt.faresnext101v2,
+                  'faresnext101v3':meta_model.FractAllNeXt.faresnext101v3}
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',

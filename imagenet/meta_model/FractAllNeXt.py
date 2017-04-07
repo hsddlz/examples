@@ -243,7 +243,123 @@ class FANeXtBottleneckV2(nn.Module):
 
         return out
         '''
+
+class FANeXtBottleneckV3(nn.Module):
+    expansion = 2
+    def __init__(self, inplanes, planes, stride=1, downsample=None):
+        super(FANeXtBottleneckV3, self).__init__()
+        self.group_planlist = [2**int(np.log2(planes)-6)]+\
+                [2**i for i in range(int(np.log2(planes)-6),int(np.log2(planes)-3))]
+        self.groups = 8
+        self.group_plan = self.group_planlist * self.groups
         
+        '''
+        #Original ResNeXt Structure
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=32, stride=stride, 
+                               padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.conv3 = nn.Conv2d(planes, planes * 2, kernel_size=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(planes * 2)
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+        self.stride = stride
+        '''
+        
+        
+        #self.conv1 = nn.Conv2d(inplanes,planes,kernel_size=1,bias=False)
+        #self.bn1 = nn.BatchNorm2d(planes)
+        for idx,planval in enumerate(self.group_planlist):
+            exec('self.conv1_{idx}=nn.Conv2d(inplanes, {val}, kernel_size=1, bias=False)'.\
+                 format(idx=idx,val=planval*self.groups))
+            exec('self.bn1_{idx}=nn.BatchNorm2d({val})'.format(idx=idx,val=planval*self.groups))
+            #exec('self.conv2_{idx}=nn.Conv2d({val}, {val}, kernel_size=3,stride=stride,padding=1,bias=False)'\
+            #     .format(idx=idx,val=planval))
+            exec('self.conv2_{idx}=nn.Conv2d({val}, {val}, kernel_size=3, groups={groups}, stride=stride, padding=1, bias=False)'\
+                 .format(idx=idx,val=planval*self.groups,groups=self.groups))
+            
+            #exec('self.bn2_{idx}=nn.BatchNorm2d({val})'.format(idx=idx,val=planval))
+            #exec('self.conv3_{idx}=nn.Conv2d({val}, planes*2, kernel_size=1, bias=False)'.format(idx=idx,val=planval))
+        
+        #self.conv2_0 = nn.Conv2d(planes, planes/2, kernel_size=3,stride=stride,padding=1,bias=False)
+        #self.conv2_1 = nn.Conv2d(planes, planes/2, kernel_size=3,stride=stride,padding=1,bias=False)
+        
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.conv3 = nn.Conv2d(planes, planes * 2, kernel_size=1, bias=False)
+        
+        self.bn3 = nn.BatchNorm2d(planes * 2)
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+        self.stride = stride
+        
+    def forward(self, x):    
+        residual = x
+        if self.downsample is not None:
+            residual = self.downsample(x)
+            
+        finalout = residual
+        
+        '''
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
+        
+        finalout = finalout + out
+        
+        finalout = self.relu(finalout)
+        return finalout
+        '''
+        
+        # ResistOOM
+        #out = self.conv1(x)
+        #out = self.bn1(out)
+        #out = self.relu(out)
+        
+        s = ','.join(['self.conv2_{idx}(self.relu(self.bn1_{idx}(self.conv1_{idx}(out))))'.format(idx=i) for i in range(4)])
+        exec('out = torch.cat([{s}],1)'.format(s=s))
+        
+        
+        out = self.bn2(out)
+        out = self.relu(out)
+        out = self.conv3(out)
+        out = self.bn3(out)
+        
+        finalout = finalout+out
+        
+        finalout = self.relu(finalout)
+        return finalout
+        
+        
+        '''
+        residual = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out += residual
+        out = self.relu(out)
+
+        return out
+        '''
         
 class FABigBlock(nn.Module):
     fracparam = 2
@@ -381,6 +497,15 @@ def faresnext50v2(pretrained=False, **kwargs):
     return model
 
 
+def faresnext50v3(pretrained=False, **kwargs):
+    """Constructs a ResNeXt-50 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    model = FAResNeXt(FANeXtBottleneckV3, [3, 4, 6, 3], **kwargs)
+    
+    return model
+
 
 def faresnext101(pretrained=False, **kwargs):
     """Constructs a ResNeXt-101 model.
@@ -391,12 +516,22 @@ def faresnext101(pretrained=False, **kwargs):
 
     return model
 
+
 def faresnext101v2(pretrained=False, **kwargs):
     """Constructs a ResNeXt-101 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
     model = FAResNeXt(FANeXtBottleneckV2, [3, 4, 23, 3], **kwargs)
+
+    return model
+
+def faresnext101v3(pretrained=False, **kwargs):
+    """Constructs a ResNeXt-101 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    model = FAResNeXt(FANeXtBottleneckV3, [3, 4, 23, 3], **kwargs)
 
     return model
 
