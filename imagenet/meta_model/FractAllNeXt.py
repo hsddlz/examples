@@ -323,7 +323,7 @@ class FANeXtBottleneckV3(nn.Module):
         #out = self.bn1(out)
         #out = self.relu(out)
         
-        s = ','.join(['self.conv2_{idx}(self.relu(self.bn1_{idx}(self.conv1_{idx}(out))))'.format(idx=i) for i in range(4)])
+        s = ','.join(['self.conv2_{idx}(self.relu(self.bn1_{idx}(self.conv1_{idx}(x))))'.format(idx=i) for i in range(4)])
         exec('out = torch.cat([{s}],1)'.format(s=s))
         
         
