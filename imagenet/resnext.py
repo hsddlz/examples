@@ -1,5 +1,6 @@
 import torch.nn as nn
 import math
+import copy
 #import torch.utils.model_zoo as model_zoo
 
 
@@ -200,20 +201,129 @@ class ResNet(nn.Module):
 
 class ResNeXt(nn.Module):
 
-    def __init__(self, block, layers, num_classes=1000):
+    def __init__(self, block, layers, verticalfrac=False, fracparam=2, num_classes=1000):
         self.inplanes = 64
+        self.verticalfrac = verticalfrac
+        self.fracparam = fracparam
+        
         super(ResNeXt, self).__init__()
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
                                bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        
+        #if self.verticalfrac==False:
         self.layer1 = self._make_layer(block, 128, layers[0])
         self.layer2 = self._make_layer(block, 256, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 512, layers[2], stride=2)
         self.layer4 = self._make_layer(block, 1024, layers[3], stride=2)
+        
+        if self.verticalfrac == True:
+            for bigidx, bigblock in enumerate([self.layer1,self.layer2,self.layer3,self.layer4]):
+                for idx, layer in enumerate(bigblock):
+                    exec('self.layer_{bigidx}_{idx} = layer'.format(bigidx=bigidx, idx=idx))
+                
+            
         self.avgpool = nn.AvgPool2d(7)
         self.fc = nn.Linear(1024 * block.expansion, num_classes)
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, math.sqrt(2. / n))
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+
+    def _make_layer(self, block, planes, blocks, stride=1):
+        '''
+        downsample = None
+        
+        if stride != 1 or self.inplanes != planes * block.expansion:
+            downsample = nn.Sequential(
+                nn.Conv2d(self.inplanes, planes * block.expansion,
+                          kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(planes * block.expansion),
+            )
+        '''
+        
+        downsample = nn.Sequential(
+                nn.Conv2d(self.inplanes, planes * block.expansion,
+                          kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(planes * block.expansion),
+            )
+        
+        layers = []
+        layers.append(block(self.inplanes, planes, stride, downsample))
+        
+        self.inplanes = planes * block.expansion
+        for i in range(1, blocks):
+            layers.append(block(self.inplanes, planes))
+
+        if self.verticalfrac == False:
+            return nn.Sequential(*layers)
+        else:
+            return copy.copy(layers)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+
+        if self.verticalfrac == False:
+            x = self.layer1(x)
+            x = self.layer2(x)
+            x = self.layer3(x)
+            x = self.layer4(x)
+        else:
+            for bigidx, bigblock in enumerate([self.layer1,self.layer2,self.layer3,self.layer4]):
+                #blockinit = x
+                for idx, layer in enumerate(bigblock):
+                    tmpjump = 1
+                    if idx == 0:
+                        #print 'out_{bigidx}_{idx} = self.layer_{bigidx}_{idx}(x)'\
+                        #     .format(bigidx=bigidx,idx=idx)
+                        exec('out_{bigidx}_{idx} = self.layer_{bigidx}_{idx}(x)'\
+                             .format(bigidx=bigidx,idx=idx))
+                    else:
+                        #print 'out_{bigidx}_{idx} = self.layer_{bigidx}_{idx}(out_{bigidx}_{idxm})'\
+                        #     .format(bigidx=bigidx,idx=idx,idxm=idx-tmpjump)
+                        exec('out_{bigidx}_{idx} = self.layer_{bigidx}_{idx}(out_{bigidx}_{idxm})'\
+                             .format(bigidx=bigidx,idx=idx,idxm=idx-tmpjump))
+                        tmpjump = tmpjump * self.fracparam
+                        while idx - tmpjump > 0:
+                        #    print 'out_{bigidx}_{idx} = out_{bigidx}_{idx} + out_{bigidx}_{idxm}'\
+                        #         .format(bigidx=bigidx,idx=idx,idxm=idx-tmpjump)
+                            exec('out_{bigidx}_{idx} = out_{bigidx}_{idx} + out_{bigidx}_{idxm}'\
+                                 .format(bigidx=bigidx,idx=idx,idxm=idx-tmpjump))
+                            tmpjump = tmpjump * self.fracparam
+                #print 'x = out_{bigidx}_{idx}'.format(bigidx=bigidx,idx=len(bigblock)-1)
+                exec('x = out_{bigidx}_{idx}'.format(bigidx=bigidx,idx=len(bigblock)-1))
+
+        x = self.avgpool(x)
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
+
+        return x    
+
+class ResNeXtX2(nn.Module):
+
+    def __init__(self, block, layers, num_classes=1000):
+        self.inplanes = 64
+        super(ResNeXtX2, self).__init__()
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
+                               bias=False)
+        self.bn1 = nn.BatchNorm2d(64)
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.layer1 = self._make_layer(block, 256, layers[0])
+        self.layer2 = self._make_layer(block, 512, layers[1], stride=2)
+        self.layer3 = self._make_layer(block, 1024, layers[2], stride=2)
+        self.layer4 = self._make_layer(block, 2048, layers[3], stride=2)
+        self.avgpool = nn.AvgPool2d(7)
+        self.fc = nn.Linear(2048 * block.expansion, num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -267,7 +377,6 @@ class ResNeXt(nn.Module):
 
         return x    
 
-
 def resnet18(pretrained=False, **kwargs):
     """Constructs a ResNet-18 model.
     Args:
@@ -311,6 +420,27 @@ def resnext50(pretrained=False, **kwargs):
 
     return model
 
+
+def resnext50v(pretrained=False, **kwargs):
+    """Constructs a ResNeXt-50 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    model = ResNeXt(NeXtBottleneck, [3, 4, 6, 3], verticalfrac=True, **kwargs)
+
+    return model
+
+
+def resnext50x2(pretrained=False, **kwargs):
+    """Constructs a ResNeXt-50 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    model = ResNeXtX2(NeXtBottleneck, [3, 4, 6, 3], **kwargs)
+
+    return model
+
+
 def resnet101(pretrained=False, **kwargs):
     """Constructs a ResNet-101 model.
     Args:
@@ -322,12 +452,24 @@ def resnet101(pretrained=False, **kwargs):
     return model
 
 
+
+
 def resnext101(pretrained=False, **kwargs):
     """Constructs a ResNeXt-101 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
     model = ResNeXt(NeXtBottleneck, [3, 4, 23, 3], **kwargs)
+
+    return model
+
+
+def resnext101v(pretrained=False, **kwargs):
+    """Constructs a ResNeXt-101 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    model = ResNeXt(NeXtBottleneck, [3, 4, 23, 3], verticalfrac=True,  **kwargs)
 
     return model
 

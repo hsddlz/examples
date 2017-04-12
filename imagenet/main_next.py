@@ -22,7 +22,10 @@ model_names = sorted(name for name in models.__dict__
 
 
 resnext_models = {'resnext50':resnext.resnext50,
+                  'resnext50x2':resnext.resnext50x2,
+                  'resnext50v':resnext.resnext50v,
                   'resnext101':resnext.resnext101,
+                  'resnext101v':resnext.resnext101v,
                   'resnext152':resnext.resnext152,
                   'resnet50':resnext.resnet50,
                   'faresnext50':meta_model.FractAllNeXt.faresnext50,
