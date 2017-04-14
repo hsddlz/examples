@@ -22,6 +22,8 @@ model_names = sorted(name for name in models.__dict__
 
 
 resnext_models = {'resnext50':resnext.resnext50,
+                  'resnext38':resnext.resnext38,
+                  'resnext26':resnext.resnext26,
                   'resnext50x2':resnext.resnext50x2,
                   'resnext50v':resnext.resnext50v,
                   'resnext50hgs':resnext.resnext50hgs,
@@ -137,6 +139,8 @@ def main():
 
     # define loss function (criterion) and pptimizer
     criterion = nn.CrossEntropyLoss().cuda()
+    
+    # criterion  = nn.L1Loss().cuda()
 
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,

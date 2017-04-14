@@ -224,7 +224,7 @@ class ResNeXt(nn.Module):
                 for idx, layer in enumerate(bigblock):
                     exec('self.layer_{bigidx}_{idx} = layer'.format(bigidx=bigidx, idx=idx))
                 
-        self.avgpool2 = nn.AvgPool2d(kernel_size=2, stride=2)
+        self.avgpool = nn.AvgPool2d(7)
         self.fc = nn.Linear(wider * 1024 * block.expansion, num_classes)
 
         for m in self.modules():
@@ -474,6 +474,29 @@ def resnet34(pretrained=False, **kwargs):
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['resnet34']))
     return model
+
+
+
+def resnext26(pretrained=False, **kwargs):
+    """Constructs a ResNeXt-26 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    model = ResNeXt(NeXtBottleneck, [2, 2, 2, 2], **kwargs)
+    
+    return model
+
+
+
+def resnext38(pretrained=False, **kwargs):
+    """Constructs a ResNeXt-38 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    model = ResNeXt(NeXtBottleneck, [3, 3, 3, 3], **kwargs)
+    
+    return model
+
 
 
 def resnet50(pretrained=False, **kwargs):
