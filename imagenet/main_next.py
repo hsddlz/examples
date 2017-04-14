@@ -22,8 +22,11 @@ model_names = sorted(name for name in models.__dict__
 
 
 resnext_models = {'resnext50':resnext.resnext50,
+                  'resnext38':resnext.resnext38,
+                  'resnext26':resnext.resnext26,
                   'resnext50x2':resnext.resnext50x2,
                   'resnext50v':resnext.resnext50v,
+                  'resnext50hgs':resnext.resnext50hgs,
                   'resnext101':resnext.resnext101,
                   'resnext101v':resnext.resnext101v,
                   'resnext152':resnext.resnext152,
@@ -54,12 +57,14 @@ parser.add_argument('-b', '--batch-size', default=256, type=int,
                     metavar='N', help='mini-batch size (default: 256)')
 parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
                     metavar='LR', help='initial learning rate')
+parser.add_argument('--lp','--learning-policy',default=20, type=int,
+                   metavar='LP', help='learning policy: every lp epochs lr*=0.1')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
-parser.add_argument('--print-freq', '-p', default=10, type=int,
-                    metavar='N', help='print frequency (default: 10)')
+parser.add_argument('--print-freq', '-p', default=20, type=int,
+                    metavar='N', help='print frequency (default: 20)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
@@ -134,6 +139,8 @@ def main():
 
     # define loss function (criterion) and pptimizer
     criterion = nn.CrossEntropyLoss().cuda()
+    
+    # criterion  = nn.L1Loss().cuda()
 
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
@@ -282,7 +289,7 @@ class AverageMeter(object):
 
 def adjust_learning_rate(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 10 every 20 epochs"""
-    lr = args.lr * (0.1 ** (epoch // 25))
+    lr = args.lr * (0.1 ** (epoch // args.lp))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
