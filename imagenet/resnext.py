@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import math
 import copy
@@ -155,6 +156,8 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
         self.avgpool = nn.AvgPool2d(7)
         self.fc = nn.Linear(512 * block.expansion, num_classes)
+        self.logsoftmax = nn.LogSoftMax()
+        
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -195,16 +198,21 @@ class ResNet(nn.Module):
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         x = self.fc(x)
+        x = self.logsoftmax(x)
 
         return x
 
 
 class ResNeXt(nn.Module):
 
-    def __init__(self, block, layers, verticalfrac=False, fracparam=2, wider = 1, finer = 1,  num_classes=1000):
+    def __init__(self, block, layers, verticalfrac=False, fracparam=2, wider = 1, finer = 1,  num_classes=1000, \
+                multiway = 0, L1mode = False, changeloss = False):
         self.inplanes = 64
         self.verticalfrac = verticalfrac
         self.fracparam = fracparam
+        self.multiway = multiway
+        self.L1mode = L1mode
+        self.changeloss = changeloss
         
         super(ResNeXt, self).__init__()
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
@@ -225,8 +233,17 @@ class ResNeXt(nn.Module):
                     exec('self.layer_{bigidx}_{idx} = layer'.format(bigidx=bigidx, idx=idx))
                 
         self.avgpool = nn.AvgPool2d(7)
-        self.fc = nn.Linear(wider * 1024 * block.expansion, num_classes)
+        if multiway <= 0:
+            self.fc = nn.Linear(wider * 1024 * block.expansion, num_classes)
+        else:
+            for i in range(multiway):
+                exec('self.fc_{0} = nn.Linear(wider*1024*block.expansion, num_classes)'.format(i))
 
+        if L1mode == False:
+            self.sm = nn.LogSoftmax()
+        else:
+            self.sm = nn.Softmax()
+        
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
@@ -303,15 +320,24 @@ class ResNeXt(nn.Module):
 
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
-        x = self.fc(x)
-
+        if self.multiway <=0:
+            x = self.fc(x)
+            if self.changeloss:
+                x = self.sm(x)
+        else:
+            xtmp = self.sm(  self.fc_0(x) ) * ( 1.0 / self.multiway) 
+            for i in range(1, self.multiway):
+                exec('xtmp = xtmp + self.sm( self.fc_{0}(x) ) * ( 1.0 / self.multiway)'.format(i) )
+            x = xtmp
+            
         return x
     
 class ResNeXt_HGS(nn.Module):
 
-    def __init__(self, block, layers, verticalfrac=False, verticalHGS = False, fracparam=2, wider = 1, finer = 1,  num_classes=1000):
+    def __init__(self, block, layers, verticalfrac=False, verticalHGS = False, fracparam = 2, wider = 1, finer = 1,  num_classes=1000):
         self.inplanes = 64
         self.verticalfrac = verticalfrac
+        self.verticalHGS = verticalHGS
         self.fracparam = fracparam
         
         super(ResNeXt_HGS, self).__init__()
@@ -387,7 +413,7 @@ class ResNeXt_HGS(nn.Module):
         x = self.relu(x)
         x = self.maxpool(x)
         
-        print 'forwarding'
+        #print 'forwarding'
         
         if self.verticalfrac == False:
             x = self.layer1(x)
@@ -420,31 +446,36 @@ class ResNeXt_HGS(nn.Module):
                 exec('x = out_{bigidx}_{idx}'.format(bigidx=bigidx,idx=len(bigblock)-1))
         else:
             for bigidx, bigblock in enumerate([self.layer1,self.layer2,self.layer3,self.layer4]):
-                for idx, layer in numerate(bigblock):
+                for idx, layer in enumerate(bigblock):
                     tmpjump = 1
                     if bigidx == 0 and idx == 0:
-                        print 'out_{bigidx}_{idx} = self.layer_{bigidx}_{idx}(x)'\
-                             .format(bigidx=bigidx,idx=idx)
+                        #print 'out_{bigidx}_{idx} = self.layer_{bigidx}_{idx}(x)'\
+                        #     .format(bigidx=bigidx,idx=idx)
                         exec('out_{bigidx}_{idx} = self.layer_{bigidx}_{idx}(x)'\
                              .format(bigidx=bigidx,idx=idx))
                     else:
-                        totallayeridx = self.invlayeridx([bigidx,idx])
+                        totallayeridx = self.invlayeridx[(bigidx,idx)]
                         lastbigidx,lastidx = self.layeridx[totallayeridx-1]
-                        print 'out_{bigidx}_{idx} = self.layer_{bigidx}_{idx}(out_{lastbigidx}_{lastidx})'\
-                             .format(bigidx=bigidx,idx=idx,lastbigidx=lastbigidx,lastidx=lastidx)
+                        #print 'out_{bigidx}_{idx} = self.layer_{bigidx}_{idx}(out_{lastbigidx}_{lastidx})'\
+                        #     .format(bigidx=bigidx,idx=idx,lastbigidx=lastbigidx,lastidx=lastidx)
                         exec('out_{bigidx}_{idx} = self.layer_{bigidx}_{idx}(out_{lastbigidx}_{lastidx})'\
                              .format(bigidx=bigidx,idx=idx,lastbigidx=lastbigidx,lastidx=lastidx))
                         tmpjump = tmpjump * self.fracparam
-                        while totallayeridx-tmpjump >= 0:
-                            lastbigidx , lastidx = self.layeridx[totallayeridx-tmpjump]
+                        while totallayeridx - tmpjump >= 0:
+                            #print "totallayeridx=",totallayeridx,"tmpjump=", tmpjump
+                            lastbigidx , lastidx = self.layeridx[totallayeridx - tmpjump]
                             npool = bigidx - lastbigidx
+                            #print "npool=", npool
                             s = 'out_{lastbigidx}_{lastidx}'.format(lastbigidx=lastbigidx,lastidx=lastidx)
                             for _ in range(npool):
                                 s = 'self.avgpool2({0})'.format(s)
-                            print 'out_{bigidx}_{idx} = out_{bigidx}_{idx} + {s}'.format(bigidx=bigidx,idx=idx,s=s)
+                                s = 'torch.cat([{s},{s}],1)'.format(s=s)
+                                #print s
+                            #print 'out_{bigidx}_{idx} = out_{bigidx}_{idx} + {s}'.format(bigidx=bigidx,idx=idx,s=s)
                             exec('out_{bigidx}_{idx} = out_{bigidx}_{idx} + {s}'.format(bigidx=bigidx,idx=idx,s=s))
                             tmpjump = tmpjump * self.fracparam
-            print 'x = out_{bigidx}_{idx}'.format(bigidx=3,idx=len(self.layer4)-1)
+                            #print "self.fracparam=",self.fracparam, "updatedtmpjump=", tmpjump
+            #print 'x = out_{bigidx}_{idx}'.format(bigidx=3,idx=len(self.layer4)-1)
             exec('x = out_{bigidx}_{idx}'.format(bigidx=3,idx=len(self.layer4)-1))
      
         x = self.avgpool(x)
@@ -519,6 +550,34 @@ def resnext50(pretrained=False, **kwargs):
     model = ResNeXt(NeXtBottleneck, [3, 4, 6, 3], **kwargs)
 
     return model
+
+def resnext50my(pretrained=False, **kwargs):
+    """Constructs a ResNeXt-50 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    model = ResNeXt(NeXtBottleneck, [3, 4, 6, 3], multiway = 10, changeloss = True, **kwargs)
+    
+    return model
+
+def resnext50myL1(pretrained=False, **kwargs):
+    """Constructs a ResNeXt-50 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    model = ResNeXt(NeXtBottleneck, [3, 4, 6, 3], multiway = 10, L1mode=True, changeloss = True, **kwargs)
+    
+    return model
+
+def resnext50L1(pretrained=False, **kwargs):
+    """Constructs a ResNeXt-50 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    model = ResNeXt(NeXtBottleneck, [3, 4, 6, 3], L1mode = True, changeloss = True, **kwargs)
+    
+    return model
+
 
 
 def resnext50v(pretrained=False, **kwargs):
