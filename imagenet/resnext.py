@@ -206,12 +206,13 @@ class ResNet(nn.Module):
 class ResNeXt(nn.Module):
 
     def __init__(self, block, layers, verticalfrac=False, fracparam=2, wider = 1, finer = 1,  num_classes=1000, \
-                multiway = 0, L1mode = False):
+                multiway = 0, L1mode = False, changeloss = False):
         self.inplanes = 64
         self.verticalfrac = verticalfrac
         self.fracparam = fracparam
         self.multiway = multiway
         self.L1mode = L1mode
+        self.changeloss = changeloss
         
         super(ResNeXt, self).__init__()
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
@@ -321,11 +322,12 @@ class ResNeXt(nn.Module):
         x = x.view(x.size(0), -1)
         if self.multiway <=0:
             x = self.fc(x)
-            x = self.sm(x)
+            if self.changeloss:
+                x = self.sm(x)
         else:
-            xtmp = self.fc_0(x) * ( 1.0 / self.multiway)
+            xtmp = self.sm(  self.fc_0(x) ) * ( 1.0 / self.multiway) 
             for i in range(1, self.multiway):
-                exec('xtmp = xtmp + self.sm(self.fc_{0}(x) * ( 1.0 / self.multiway))')
+                exec('xtmp = xtmp + self.sm( self.fc_{0}(x) ) * ( 1.0 / self.multiway)'.format(i) )
             x = xtmp
             
         return x
@@ -554,7 +556,7 @@ def resnext50my(pretrained=False, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    model = ResNeXt(NeXtBottleneck, [3, 4, 6, 3], multiway = 10, **kwargs)
+    model = ResNeXt(NeXtBottleneck, [3, 4, 6, 3], multiway = 10, changeloss = True, **kwargs)
     
     return model
 
@@ -563,7 +565,7 @@ def resnext50myL1(pretrained=False, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    model = ResNeXt(NeXtBottleneck, [3, 4, 6, 3], multiway = 10, L1mode=True, **kwargs)
+    model = ResNeXt(NeXtBottleneck, [3, 4, 6, 3], multiway = 10, L1mode=True, changeloss = True, **kwargs)
     
     return model
 
@@ -572,7 +574,7 @@ def resnext50L1(pretrained=False, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    model = ResNeXt(NeXtBottleneck, [3, 4, 6, 3], L1mode = True, **kwargs)
+    model = ResNeXt(NeXtBottleneck, [3, 4, 6, 3], L1mode = True, changeloss = True, **kwargs)
     
     return model
 

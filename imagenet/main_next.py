@@ -3,6 +3,7 @@ import os
 import shutil
 import time
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.parallel
@@ -58,6 +59,10 @@ parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
 parser.add_argument('-b', '--batch-size', default=256, type=int,
                     metavar='N', help='mini-batch size (default: 256)')
+
+parser.add_argument('--nclass', '--num-classes', default=1000, type=int,
+                    metavar='N', help='mini-batch size (default: 256)')
+
 parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
                     metavar='LR', help='initial learning rate')
 parser.add_argument('--lp','--learning-policy',default=20, type=int,
@@ -147,9 +152,11 @@ def main():
     # define loss function (criterion) and pptimizer
     #criterion = nn.CrossEntropyLoss().cuda()
     if 'L1' in args.arch:
-        criterion = nn.L1Loss().cuda()
-    else:
+        criterion = nn.L1Loss(size_average=False).cuda()
+    elif 'my' in args.arch:
         criterion = nn.NLLLoss().cuda()
+    else:
+        criterion = nn.CrossEntropyLoss().cuda()
 
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
@@ -193,10 +200,21 @@ def train(train_loader, model, criterion, optimizer, epoch):
     for i, (input, target) in enumerate(train_loader):
         # measure data loading time
         data_time.update(time.time() - end)
-
-        target = target.cuda(async=True)
+        #print type(target.float())
+        if 'L1' in args.arch:
+            targetTensor = np.zeros((args.batch_size, args.nclass))
+            for j in range(args.batch_size):
+                targetTensor[j, target[j]] = 1.0
+            targetTensor = torch.FloatTensor(targetTensor)
+            targetTensor = targetTensor.cuda(async=True)
+            target = target.cuda(async=True)
+            target_var = torch.autograd.Variable(targetTensor)
+        else:    
+            target = target.cuda(async=True)
+            target_var = torch.autograd.Variable(target)
+            
         input_var = torch.autograd.Variable(input)
-        target_var = torch.autograd.Variable(target)
+        
 
         # compute output
         output = model(input_var)
@@ -239,7 +257,16 @@ def validate(val_loader, model, criterion):
 
     end = time.time()
     for i, (input, target) in enumerate(val_loader):
-        target = target.cuda(async=True)
+        
+        if 'L1' in args.arch:
+            tmp = np.zeros((args.batch_size, args.nclass))
+            for i in range(args.batch_size):
+                tmp[i, target[i]] = 1.0
+            target = torch.FloatTensor(tmp)
+            target = target.cuda(async=True)
+        else:    
+            target = target.cuda(async=True)
+            
         input_var = torch.autograd.Variable(input, volatile=True)
         target_var = torch.autograd.Variable(target, volatile=True)
 
@@ -303,9 +330,11 @@ def adjust_learning_rate(optimizer, epoch):
         lr = args.lr * (0.1 ** (epoch > args.lp)) * (0.1 ** (epoch > (args.lp*2))) * (0.1 ** (epoch > (args.lp*3))) * \
                     (0.1 ** (epoch > (args.lp*4)))
     else:
-        lr = 0.1 if ( epoch < 56 ) else (\
-                      0.01 if ( epoch < 86 ) else (0.001 if ( epoch < 116 ) else 0.0001 )\
+        lr = 0.1 if ( epoch < 71 ) else (\
+                      0.01 if ( epoch < 86 ) else (0.001 if ( epoch < 101 ) else 0.0001 )\
                       )
+        if 'L1' in args.arch:
+            lr = 1.0 * lr / args.batch_size / 10
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
