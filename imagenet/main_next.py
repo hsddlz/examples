@@ -22,6 +22,9 @@ model_names = sorted(name for name in models.__dict__
 
 
 resnext_models = {'resnext50':resnext.resnext50,
+                  'resnext50my':resnext.resnext50my,
+                  'resnext50L1':resnext.resnext50L1,
+                  'resnext50myL1':resnext.resnext50myL1,
                   'resnext38':resnext.resnext38,
                   'resnext26':resnext.resnext26,
                   'resnext50x2':resnext.resnext50x2,
@@ -63,6 +66,10 @@ parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
+
+parser.add_argument('--my', '--multi-way', default=0, type=int,
+                    metavar='MultiWay Softmax', help='MultiWay Softmax is kind of Ensemble')
+
 parser.add_argument('--print-freq', '-p', default=20, type=int,
                     metavar='N', help='print frequency (default: 20)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
@@ -138,9 +145,11 @@ def main():
         num_workers=args.workers, pin_memory=True)
 
     # define loss function (criterion) and pptimizer
-    criterion = nn.CrossEntropyLoss().cuda()
-    
-    # criterion  = nn.L1Loss().cuda()
+    #criterion = nn.CrossEntropyLoss().cuda()
+    if 'L1' in args.arch:
+        criterion = nn.L1Loss().cuda()
+    else:
+        criterion = nn.NLLLoss().cuda()
 
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
@@ -288,8 +297,15 @@ class AverageMeter(object):
 
 
 def adjust_learning_rate(optimizer, epoch):
-    """Sets the learning rate to the initial LR decayed by 10 every 20 epochs"""
-    lr = args.lr * (0.1 ** (epoch // args.lp))
+    """Sets the learning rate to the initial LR decayed by 10 every 30/30/30/30 epochs"""
+    """The following pattern is just an example. Please modify yourself."""
+    if args.lp > 0:
+        lr = args.lr * (0.1 ** (epoch > args.lp)) * (0.1 ** (epoch > (args.lp*2))) * (0.1 ** (epoch > (args.lp*3))) * \
+                    (0.1 ** (epoch > (args.lp*4)))
+    else:
+        lr = 0.1 if ( epoch < 56 ) else (\
+                      0.01 if ( epoch < 86 ) else (0.001 if ( epoch < 116 ) else 0.0001 )\
+                      )
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
