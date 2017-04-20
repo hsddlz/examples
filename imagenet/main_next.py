@@ -327,11 +327,11 @@ def adjust_learning_rate(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 10 every 30/30/30/30 epochs"""
     """The following pattern is just an example. Please modify yourself."""
     if args.lp > 0:
-        lr = args.lr * (0.1 ** (epoch > args.lp)) * (0.1 ** (epoch > (args.lp*2))) * (0.1 ** (epoch > (args.lp*3))) * \
-                    (0.1 ** (epoch > (args.lp*4)))
+        lr = args.lr * (0.1 ** (epoch >= args.lp)) * (0.1 ** (epoch >= (args.lp*2))) * (0.1 ** (epoch >= (args.lp*3))) * \
+                    (0.1 ** (epoch >= (args.lp*4)))
     else:
-        lr = 0.1 if ( epoch < 71 ) else (\
-                      0.01 if ( epoch < 86 ) else (0.001 if ( epoch < 101 ) else 0.0001 )\
+        lr = 0.1 if ( epoch < 56 ) else (\
+                      0.01 if ( epoch < 86 ) else (0.001 if ( epoch < 116 ) else 0.0001 )\
                       )
         if 'L1' in args.arch:
             lr = 1.0 * lr / args.batch_size / 10
