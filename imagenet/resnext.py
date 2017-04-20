@@ -325,9 +325,9 @@ class ResNeXt(nn.Module):
             if self.changeloss:
                 x = self.sm(x)
         else:
-            xtmp = self.sm(  self.fc_0(x) ) * ( 1.0 / self.multiway) 
+            xtmp = self.sm(  self.fc_0(x) )  # * ( 1.0 / self.multiway) 
             for i in range(1, self.multiway):
-                exec('xtmp = xtmp + self.sm( self.fc_{0}(x) ) * ( 1.0 / self.multiway)'.format(i) )
+                exec('xtmp = xtmp + self.sm( self.fc_{0}(x) ) '.format(i) )
             x = xtmp
             
         return x
