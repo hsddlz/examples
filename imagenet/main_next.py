@@ -23,6 +23,9 @@ model_names = sorted(name for name in models.__dict__
 
 
 resnext_models = {'resnext50':resnext.resnext50,
+                  'resnext50_expand8':resnext.resnext50_expand8,
+                  'resnext50_cifar10_expand8':resnext.resnext50_cifar10_expand8,
+                  'resnext50_cifar10':resnext.resnext50_cifar10,
                   'resnext50my':resnext.resnext50my,
                   'resnext50L1':resnext.resnext50L1,
                   'resnext50myL1':resnext.resnext50myL1,
@@ -53,7 +56,13 @@ parser.add_argument('--arch', '-a', metavar='ARCH', default='faresnext50',
 
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
-parser.add_argument('--epochs', default=100, type=int, metavar='N',
+parser.add_argument('--tl', '--train-loops', default=1, type=int, metavar='N',
+                    help='number of data training loops during 1 epoch (default: 1)')
+
+parser.add_argument('--ds', '--data-set', default='dir', type=str, metavar='S',
+                    help='default dataset')
+
+parser.add_argument('--epochs', default=300, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
@@ -124,31 +133,71 @@ def main():
     cudnn.benchmark = True
 
     # Data loading code
-    traindir = os.path.join(args.data, 'train')
-    valdir = os.path.join(args.data, 'val')
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+    if args.ds == "dir":
+        traindir = os.path.join(args.data, 'train')
+        valdir = os.path.join(args.data, 'val')
+        normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
 
-    train_loader = torch.utils.data.DataLoader(
-        datasets.ImageFolder(traindir, transforms.Compose([
-            transforms.RandomSizedCrop(224),
+        train_loader = torch.utils.data.DataLoader(
+            datasets.ImageFolder(traindir, transforms.Compose([
+                transforms.RandomSizedCrop(224),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                normalize,
+            ])),
+            batch_size=args.batch_size, shuffle=True,
+            num_workers=args.workers, pin_memory=True)
+
+        val_loader = torch.utils.data.DataLoader(
+            datasets.ImageFolder(valdir, transforms.Compose([
+                transforms.Scale(256),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                normalize,
+            ])),
+            batch_size=args.batch_size, shuffle=False,
+            num_workers=args.workers, pin_memory=True)
+        
+    elif args.ds in ["CIFAR10","CIFAR100"]:
+        normalize = transforms.Normalize(mean=[x/255.0 for x in [125.3, 123.0, 113.9]],
+                                     std=[x/255.0 for x in [63.0, 62.1, 66.7]])
+        transform_train = transforms.Compose([
+            transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             normalize,
-        ])),
-        batch_size=args.batch_size, shuffle=True,
-        num_workers=args.workers, pin_memory=True)
-
-    val_loader = torch.utils.data.DataLoader(
-        datasets.ImageFolder(valdir, transforms.Compose([
-            transforms.Scale(256),
-            transforms.CenterCrop(224),
+            ])
+        
+        transform_test = transforms.Compose([
             transforms.ToTensor(),
-            normalize,
-        ])),
-        batch_size=args.batch_size, shuffle=False,
-        num_workers=args.workers, pin_memory=True)
-
+            normalize
+            ])
+        
+        if args.ds == "CIFAR10":
+            
+            train_loader = torch.utils.data.DataLoader(
+                datasets.CIFAR10('../data', train=True, download=True,
+                             transform=transform_train),
+                             batch_size=args.batch_size, shuffle=True, num_workers=args.workers, pin_memory=True)
+            val_loader = torch.utils.data.DataLoader(
+                datasets.CIFAR10('../data', train=False, transform=transform_test),
+                batch_size=args.batch_size, shuffle=True, num_workers=args.workers, pin_memory=True)
+        else:
+            
+            train_loader = torch.utils.data.DataLoader(
+                datasets.CIFAR100('../data', train=True, download=True,
+                             transform=transform_train),
+                             batch_size=args.batch_size, shuffle=True, num_workers=args.workers, pin_memory=True)
+            val_loader = torch.utils.data.DataLoader(
+                datasets.CIFAR100('../data', train=False, transform=transform_test),
+                batch_size=args.batch_size, shuffle=True, num_workers=args.workers, pin_memory=True)
+        
+    else:
+        print "Unrecognized Dataset. Halt."
+        return 0
+        
+        
     # define loss function (criterion) and pptimizer
     #criterion = nn.CrossEntropyLoss().cuda()
     if 'L1' in args.arch:
@@ -170,7 +219,8 @@ def main():
         adjust_learning_rate(optimizer, epoch)
 
         # train for one epoch
-        train(train_loader, model, criterion, optimizer, epoch)
+        for i in range(args.tl):
+            train(train_loader, model, criterion, optimizer, epoch)
 
         # evaluate on validation set
         prec1 = validate(val_loader, model, criterion)
@@ -328,13 +378,13 @@ def adjust_learning_rate(optimizer, epoch):
     """The following pattern is just an example. Please modify yourself."""
     if args.lp > 0:
         lr = args.lr * (0.1 ** (epoch >= args.lp)) * (0.1 ** (epoch >= (args.lp*2))) * (0.1 ** (epoch >= (args.lp*3))) * \
-                    (0.1 ** (epoch >= (args.lp*4)))
+                    (0.1 ** (epoch >= (args.lp*4))) * (0.1 ** (epoch >= (args.lp*5)))
     else:
         lr = 0.1 if ( epoch < 56 ) else (\
                       0.01 if ( epoch < 86 ) else (0.001 if ( epoch < 116 ) else 0.0001 )\
                       )
         if 'L1' in args.arch:
-            lr = 1.0 * lr / args.batch_size / 10
+            lr = 1.0 * lr / args.batch_size / 1000
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
