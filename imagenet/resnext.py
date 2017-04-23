@@ -108,7 +108,7 @@ class NeXtBottleneck(nn.Module):
         super(NeXtBottleneck, self).__init__()
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=32 * finer, stride=stride, 
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=int(32 * finer), stride=stride, 
                                padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
         self.conv3 = nn.Conv2d(planes, planes * 2, kernel_size=1, bias=False)
@@ -139,6 +139,119 @@ class NeXtBottleneck(nn.Module):
 
         return out
     
+class NeXtBottleneck8(nn.Module):
+    expansion = 8
+
+    def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1):
+        super(NeXtBottleneck8, self).__init__()
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups= int(32 * finer), stride=stride, 
+                               padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.conv3 = nn.Conv2d(planes, planes * 8, kernel_size=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(planes * 8)
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+        self.stride = stride
+        
+    def forward(self, x):
+        residual = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out += residual
+        out = self.relu(out)
+
+        return out
+
+class NeXtBottleneck16(nn.Module):
+    expansion = 16
+
+    def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1):
+        super(NeXtBottleneck16, self).__init__()
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=int(32 * finer), stride=stride, 
+                               padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.conv3 = nn.Conv2d(planes, planes * 16, kernel_size=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(planes * 16)
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+        self.stride = stride
+        
+    def forward(self, x):
+        residual = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out += residual
+        out = self.relu(out)
+
+        return out
+    
+class NeXtBottleneck32(nn.Module):
+    expansion = 32
+
+    def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1):
+        super(NeXtBottleneck32, self).__init__()
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=int(32 * finer), stride=stride, 
+                               padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.conv3 = nn.Conv2d(planes, planes * 32, kernel_size=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(planes * 32)
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+        self.stride = stride
+        
+    def forward(self, x):
+        residual = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out += residual
+        out = self.relu(out)
+
+        return out
     
 class ResNet(nn.Module):
 
@@ -205,7 +318,8 @@ class ResNet(nn.Module):
 
 class ResNeXt(nn.Module):
 
-    def __init__(self, block, layers, verticalfrac=False, fracparam=2, wider = 1, finer = 1,  num_classes=1000, \
+    def __init__(self, block, layers, verticalfrac=False, fracparam=2, wider = 1, finer = 1, 
+                lastout = 7 , num_classes=1000, \
                 multiway = 0, L1mode = False, changeloss = False):
         self.inplanes = 64
         self.verticalfrac = verticalfrac
@@ -222,22 +336,22 @@ class ResNeXt(nn.Module):
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         
         #if self.verticalfrac==False:
-        self.layer1 = self._make_layer(block, wider * 128, layers[0], finer = finer)
-        self.layer2 = self._make_layer(block, wider * 256, layers[1], stride=2, finer = finer)
-        self.layer3 = self._make_layer(block, wider * 512, layers[2], stride=2, finer = finer)
-        self.layer4 = self._make_layer(block, wider * 1024, layers[3], stride=2, finer = finer)
+        self.layer1 = self._make_layer(block, int(wider * 128), layers[0], finer = finer)
+        self.layer2 = self._make_layer(block, int(wider * 256), layers[1], stride=2, finer = finer)
+        self.layer3 = self._make_layer(block, int(wider * 512), layers[2], stride=2, finer = finer)
+        self.layer4 = self._make_layer(block, int(wider * 1024), layers[3], stride=2, finer = finer)
         
         if self.verticalfrac == True:
             for bigidx, bigblock in enumerate([self.layer1,self.layer2,self.layer3,self.layer4]):
                 for idx, layer in enumerate(bigblock):
                     exec('self.layer_{bigidx}_{idx} = layer'.format(bigidx=bigidx, idx=idx))
                 
-        self.avgpool = nn.AvgPool2d(7)
+        self.avgpool = nn.AvgPool2d(lastout)
         if multiway <= 0:
-            self.fc = nn.Linear(wider * 1024 * block.expansion, num_classes)
+            self.fc = nn.Linear(int(wider * 1024 * block.expansion), num_classes)
         else:
             for i in range(multiway):
-                exec('self.fc_{0} = nn.Linear(wider*1024*block.expansion, num_classes)'.format(i))
+                exec('self.fc_{0} = nn.Linear( int(wider*1024*block.expansion), num_classes)'.format(i))
 
         if L1mode == False:
             self.sm = nn.LogSoftmax()
@@ -550,6 +664,35 @@ def resnext50(pretrained=False, **kwargs):
     model = ResNeXt(NeXtBottleneck, [3, 4, 6, 3], **kwargs)
 
     return model
+
+def resnext50_expand8(pretrained=False, **kwargs):
+    """Constructs a ResNeXt-50 Expansion=8 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    model = ResNeXt(NeXtBottleneck8, [3, 4, 6, 3], **kwargs)
+
+    return model
+
+
+def resnext50_cifar10_expand8(pretrained=False, **kwargs):
+    """Constructs a ResNeXt-50 Expansion=8 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    model = ResNeXt(NeXtBottleneck8, [3, 4, 6, 3], lastout=1, num_classes=10, **kwargs)
+
+    return model
+
+def resnext50_cifar10(pretrained=False, **kwargs):
+    """Constructs a ResNeXt-50 Expansion=8 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    model = ResNeXt(NeXtBottleneck, [3, 4, 6, 3], lastout=1, num_classes=10, **kwargs)
+
+    return model
+
 
 def resnext50my(pretrained=False, **kwargs):
     """Constructs a ResNeXt-50 model.
