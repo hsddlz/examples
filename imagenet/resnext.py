@@ -684,12 +684,22 @@ def resnext50_cifar10_expand8(pretrained=False, **kwargs):
 
     return model
 
-def resnext50_cifar10(pretrained=False, **kwargs):
+def resnext50_cifar100_expand8(pretrained=False, **kwargs):
     """Constructs a ResNeXt-50 Expansion=8 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    model = ResNeXt(NeXtBottleneck, [3, 4, 6, 3], lastout=1, num_classes=10, **kwargs)
+    model = ResNeXt(NeXtBottleneck8, [3, 4, 6, 3], lastout=1, num_classes=100, **kwargs)
+
+    return model
+
+
+def resnext50_cifar100(pretrained=False, **kwargs):
+    """Constructs a ResNeXt-50 Expansion=8 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    model = ResNeXt(NeXtBottleneck, [3, 4, 6, 3], lastout=1, num_classes=100, **kwargs)
 
     return model
 
