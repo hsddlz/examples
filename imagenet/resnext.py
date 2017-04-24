@@ -139,6 +139,44 @@ class NeXtBottleneck(nn.Module):
 
         return out
     
+class NeXtBottleneck4(nn.Module):
+    expansion = 4
+
+    def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1):
+        super(NeXtBottleneck4, self).__init__()
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=int(32 * finer), stride=stride, 
+                               padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.conv3 = nn.Conv2d(planes, planes * 4, kernel_size=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(planes * 4)
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+        self.stride = stride
+        
+    def forward(self, x):
+        residual = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out += residual
+        out = self.relu(out)
+
+        return out
+    
 class NeXtBottleneck8(nn.Module):
     expansion = 8
 
@@ -320,38 +358,55 @@ class ResNeXt(nn.Module):
 
     def __init__(self, block, layers, verticalfrac=False, fracparam=2, wider = 1, finer = 1, 
                 lastout = 7 , num_classes=1000, \
-                multiway = 0, L1mode = False, changeloss = False):
+                cifar = False , multiway = 0, L1mode = False, changeloss = False):
         self.inplanes = 64
         self.verticalfrac = verticalfrac
         self.fracparam = fracparam
         self.multiway = multiway
         self.L1mode = L1mode
         self.changeloss = changeloss
+        self.cifar = cifar
         
         super(ResNeXt, self).__init__()
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
+        
+        if self.cifar:
+            self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1,
+                               bias=False)
+        else:
+            self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
                                bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
+        
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         
         #if self.verticalfrac==False:
         self.layer1 = self._make_layer(block, int(wider * 128), layers[0], finer = finer)
         self.layer2 = self._make_layer(block, int(wider * 256), layers[1], stride=2, finer = finer)
         self.layer3 = self._make_layer(block, int(wider * 512), layers[2], stride=2, finer = finer)
-        self.layer4 = self._make_layer(block, int(wider * 1024), layers[3], stride=2, finer = finer)
+        if not self.cifar:
+            self.layer4 = self._make_layer(block, int(wider * 1024), layers[3], stride=2, finer = finer)
         
+        if not self.cifar:
+            L = [self.layer1,self.layer2,self.layer3,self.layer4]
+        else:
+            L = [self.layer1,self.layer2,self.layer3]
         if self.verticalfrac == True:
-            for bigidx, bigblock in enumerate([self.layer1,self.layer2,self.layer3,self.layer4]):
+            for bigidx, bigblock in enumerate(L):
                 for idx, layer in enumerate(bigblock):
                     exec('self.layer_{bigidx}_{idx} = layer'.format(bigidx=bigidx, idx=idx))
-                
+        
+        if self.cifar:
+            fc_multiple = 0.5
+        else:
+            fc_multiple = 1.0
+        
         self.avgpool = nn.AvgPool2d(lastout)
         if multiway <= 0:
-            self.fc = nn.Linear(int(wider * 1024 * block.expansion), num_classes)
+            self.fc = nn.Linear(int(wider * 1024 * block.expansion * fc_multiple), num_classes)
         else:
             for i in range(multiway):
-                exec('self.fc_{0} = nn.Linear( int(wider*1024*block.expansion), num_classes)'.format(i))
+                exec('self.fc_{0} = nn.Linear( int(wider*1024*block.expansion * fc_multiple), num_classes)'.format(i))
 
         if L1mode == False:
             self.sm = nn.LogSoftmax()
@@ -400,15 +455,22 @@ class ResNeXt(nn.Module):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
-        x = self.maxpool(x)
+        if not self.cifar:
+            x = self.maxpool(x)
 
         if self.verticalfrac == False:
             x = self.layer1(x)
             x = self.layer2(x)
             x = self.layer3(x)
-            x = self.layer4(x)
+            if not self.cifar:
+                x = self.layer4(x)
         else:
-            for bigidx, bigblock in enumerate([self.layer1,self.layer2,self.layer3,self.layer4]):
+            if self.cifar:
+                L = [self.layer1,self.layer2,self.layer3]
+            else:
+                L = [self.layer1,self.layer2,self.layer3,self.layer4]
+            
+            for bigidx, bigblock in enumerate(L):
                 #blockinit = x
                 for idx, layer in enumerate(bigblock):
                     tmpjump = 1
@@ -680,7 +742,7 @@ def resnext50_cifar10_expand8(pretrained=False, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    model = ResNeXt(NeXtBottleneck8, [3, 4, 6, 3], lastout=1, num_classes=10, **kwargs)
+    model = ResNeXt(NeXtBottleneck4, [3, 3, 3], cifar=True, lastout=8, wider = 4 , finer= 0.5, num_classes=10, **kwargs)
 
     return model
 
@@ -689,7 +751,7 @@ def resnext50_cifar100_expand8(pretrained=False, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    model = ResNeXt(NeXtBottleneck8, [3, 4, 6, 3], lastout=1, num_classes=100, **kwargs)
+    model = ResNeXt(NeXtBottleneck4, [3, 3, 3], cifar=True, lastout = 8, wider = 4 , finer= 0.5, num_classes=100, **kwargs)
 
     return model
 
@@ -698,7 +760,7 @@ def resnext50_cifar10(pretrained=False, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    model = ResNeXt(NeXtBottleneck, [3, 4, 6, 3], lastout=1, num_classes=10, **kwargs)
+    model = ResNeXt(NeXtBottleneck4, [3, 3, 3], cifar=True, lastout= 8, wider = 4 , finer= 0.5, num_classes=10, **kwargs)
 
     return model
 
@@ -707,7 +769,7 @@ def resnext50_cifar100(pretrained=False, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    model = ResNeXt(NeXtBottleneck, [3, 4, 6, 3], lastout=1, num_classes=100, **kwargs)
+    model = ResNeXt(NeXtBottleneck4, [3, 3, 3], cifar=True, lastout= 8, wider = 4 , finer= 0.5, num_classes=100, **kwargs)
 
     return model
 
