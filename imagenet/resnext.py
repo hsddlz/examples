@@ -107,12 +107,12 @@ class NeXtBottleneckO8(nn.Module):
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1, upgroup=False, downgroup=False):
         super(NeXtBottleneckO8, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else None, bias=False)
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=int(32 * finer), stride=stride, 
                                padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, int(planes * 0.125), kernel_size=1, groups=int(32 * finer) if downgroup else None , bias=False)
+        self.conv3 = nn.Conv2d(planes, int(planes * 0.125), kernel_size=1, groups=int(32 * finer) if downgroup else 1 , bias=False)
         self.bn3 = nn.BatchNorm2d(int(planes * 0.125))
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
@@ -146,12 +146,12 @@ class NeXtBottleneckO4(nn.Module):
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1, upgroup=False, downgroup=False):
         super(NeXtBottleneckO4, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else None, bias=False)
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=int(32 * finer), stride=stride, 
                                padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, int(planes * 0.25), kernel_size=1, groups=int(32 * finer) if downgroup else None, bias=False)
+        self.conv3 = nn.Conv2d(planes, int(planes * 0.25), kernel_size=1, groups=int(32 * finer) if downgroup else 1, bias=False)
         self.bn3 = nn.BatchNorm2d(int(planes * 0.25))
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
@@ -184,12 +184,12 @@ class NeXtBottleneckO2(nn.Module):
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1, upgroup=False, downgroup=False):
         super(NeXtBottleneckO2, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else None, bias=False)
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=int(32 * finer), stride=stride, 
                                padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, int(planes * 0.5), kernel_size=1, groups=int(32 * finer) if downgroup else None, bias=False)
+        self.conv3 = nn.Conv2d(planes, int(planes * 0.5), kernel_size=1, groups=int(32 * finer) if downgroup else 1, bias=False)
         self.bn3 = nn.BatchNorm2d(int(planes * 0.5))
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
@@ -224,12 +224,12 @@ class NeXtBottleneck1(nn.Module):
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1, upgroup=False, downgroup=False):
         super(NeXtBottleneck1, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else None, bias=False)
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=int(32 * finer), stride=stride, 
                                padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, planes * 1, kernel_size=1, groups=int(32 * finer) if downgroup else None, bias=False)
+        self.conv3 = nn.Conv2d(planes, planes * 1, kernel_size=1, groups=int(32 * finer) if downgroup else 1, bias=False)
         self.bn3 = nn.BatchNorm2d(planes * 1)
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
@@ -262,12 +262,12 @@ class NeXtBottleneck(nn.Module):
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1, upgroup=False, downgroup=False):
         super(NeXtBottleneck, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else None, bias=False)
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=int(32 * finer), stride=stride, 
                                padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, planes * 2, kernel_size=1, groups=int(32 * finer) if downgroup else None, bias=False)
+        self.conv3 = nn.Conv2d(planes, planes * 2, kernel_size=1, groups=int(32 * finer) if downgroup else 1, bias=False)
         self.bn3 = nn.BatchNorm2d(planes * 2)
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
@@ -300,12 +300,12 @@ class NeXtBottleneck4(nn.Module):
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1, upgroup=False, downgroup=False):
         super(NeXtBottleneck4, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else None, bias=False)
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=int(32 * finer), stride=stride, 
                                padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, planes * 4, kernel_size=1, groups=int(32 * finer) if downgroup else None, bias=False)
+        self.conv3 = nn.Conv2d(planes, planes * 4, kernel_size=1, groups=int(32 * finer) if downgroup else 1, bias=False)
         self.bn3 = nn.BatchNorm2d(planes * 4)
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
@@ -338,12 +338,12 @@ class NeXtBottleneck8(nn.Module):
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1, upgroup=False, downgroup=False):
         super(NeXtBottleneck8, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else None, bias=False)
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups= int(32 * finer), stride=stride, 
                                padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, planes * 8, kernel_size=1, groups=int(32 * finer) if downgroup else None, bias=False)
+        self.conv3 = nn.Conv2d(planes, planes * 8, kernel_size=1, groups=int(32 * finer) if downgroup else 1, bias=False)
         self.bn3 = nn.BatchNorm2d(planes * 8)
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
@@ -376,12 +376,12 @@ class NeXtBottleneck16(nn.Module):
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1, upgroup=False, downgroup=False):
         super(NeXtBottleneck16, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else None, bias=False)
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=int(32 * finer), stride=stride, 
                                padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, planes * 16, kernel_size=1, groups=int(32 * finer) if downgroup else None, bias=False)
+        self.conv3 = nn.Conv2d(planes, planes * 16, kernel_size=1, groups=int(32 * finer) if downgroup else 1, bias=False)
         self.bn3 = nn.BatchNorm2d(planes * 16)
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
@@ -414,12 +414,12 @@ class NeXtBottleneck32(nn.Module):
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1, upgroup=False, downgroup=False):
         super(NeXtBottleneck32, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else None, bias=False)
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=int(32 * finer), stride=stride, 
                                padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, planes * 32, kernel_size=1, groups=int(32 * finer) if downgroup else None, bias=False)
+        self.conv3 = nn.Conv2d(planes, planes * 32, kernel_size=1, groups=int(32 * finer) if downgroup else 1, bias=False)
         self.bn3 = nn.BatchNorm2d(planes * 32)
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
