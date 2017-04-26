@@ -24,10 +24,8 @@ model_names = sorted(name for name in models.__dict__
 
 resnext_models = {'resnext50':resnext.resnext50,
                   'resnext50_expand8':resnext.resnext50_expand8,
-                  'resnext50_cifar10_expand8':resnext.resnext50_cifar10_expand8,
-                  'resnext50_cifar10':resnext.resnext50_cifar10,
-                  'resnext50_cifar100_expand8':resnext.resnext50_cifar100_expand8,
-                  'resnext50_cifar100':resnext.resnext50_cifar100,
+                  'resnext29_cifar10':resnext.resnext29_cifar10,
+                  'resnext29_cifar100':resnext.resnext29_cifar100,
                   'resnext50my':resnext.resnext50my,
                   'resnext50L1':resnext.resnext50L1,
                   'resnext50myL1':resnext.resnext50myL1,
@@ -71,6 +69,21 @@ parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
 parser.add_argument('-b', '--batch-size', default=256, type=int,
                     metavar='N', help='mini-batch size (default: 256)')
 
+parser.add_argument('--xp', '--expansion-coef', default=2, type=float,
+                    metavar='N', help='expansion-coef')
+
+parser.add_argument('--x', '--num-channels', default=32, type=int,
+                    metavar='N', help='expansion-coef')
+
+parser.add_argument('--d', '--channel-width', default=4, type=int,
+                    metavar='N', help='expansion-coef')
+
+parser.add_argument('--ug', '--up-group', default=0, type=int,
+                    metavar='N', help='up-group')
+
+parser.add_argument('--dg', '--down-group', default=0, type=int,
+                    metavar='N', help='down-group')
+
 parser.add_argument('--nclass', '--num-classes', default=1000, type=int,
                     metavar='N', help='mini-batch size (default: 256)')
 
@@ -107,10 +120,12 @@ def main():
     
     if args.pretrained:
         print("=> using pre-trained model '{}'".format(args.arch))
-        model = resnext_models[args.arch](pretrained=True)
+        model = resnext_models[args.arch](pretrained=True, expansion = args.xp, x = args.x, d = args.d, \
+                                         upgroup = True if args.ug else False, downgroup = True if args.dg else False)
     else:
         print("=> creating model '{}'".format(args.arch))
-        model = resnext_models[args.arch]()
+        model = resnext_models[args.arch](expansion = args.xp, x = args.x , d = args.d, \
+                                         upgroup = True if args.ug else False, downgroup = True if args.dg else False)
     
     
     if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
@@ -211,7 +226,7 @@ def main():
 
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
-                                weight_decay=args.weight_decay)
+                                weight_decay=args.weight_decay,nesterov=True)
 
     if args.evaluate:
         validate(val_loader, model, criterion)
