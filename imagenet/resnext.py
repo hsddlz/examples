@@ -966,7 +966,7 @@ def resnext29_cifar10(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = 
     wider = x * d / 128.0
 
     model = ResNeXt(B, [3, 3, 3], cifar=True, lastout=8, wider = wider , finer= finer, num_classes=10, \
-                    upgroup=upgroup, downgroup=downgroup, L1mode=L1mode**kwargs)
+                    upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, **kwargs)
 
     return model
 
