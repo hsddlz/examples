@@ -101,6 +101,43 @@ class Bottleneck(nn.Module):
 
         return out
 
+class NeXtBottleneckO16(nn.Module):
+    expansion = 0.0625
+
+    def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1, upgroup=False, downgroup=False):
+        super(NeXtBottleneckO16, self).__init__()
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=int(32 * finer), stride=stride, 
+                               padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.conv3 = nn.Conv2d(planes, int(planes * 0.0625), kernel_size=1, groups=int(32 * finer) if downgroup else 1 , bias=False)
+        self.bn3 = nn.BatchNorm2d(int(planes * 0.0625))
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+        self.stride = stride
+        
+    def forward(self, x):
+        residual = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out = out + residual
+        out = self.relu(out)
+
+        return out 
 
 class NeXtBottleneckO8(nn.Module):
     expansion = 0.125
@@ -898,7 +935,8 @@ def resnext50_expand8(pretrained=False, **kwargs):
     return model
 
 
-def resnext29_cifar10(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, **kwargs):
+def resnext29_cifar10(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False,\
+                              L1mode=False,**kwargs):
     """Constructs a ResNeXt-50 Expansion=8 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
@@ -921,16 +959,19 @@ def resnext29_cifar10(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = 
         B = NeXtBottleneckO4
     elif expansion ==0.125 :
         B = NeXtBottleneckO8
+    elif expansion ==0.0625 :
+        B = NeXtBottleneckO16
         
     finer = x / 32.0
     wider = x * d / 128.0
 
     model = ResNeXt(B, [3, 3, 3], cifar=True, lastout=8, wider = wider , finer= finer, num_classes=10, \
-                    upgroup=upgroup, downgroup=downgroup, **kwargs)
+                    upgroup=upgroup, downgroup=downgroup, L1mode=L1mode**kwargs)
 
     return model
 
-def resnext29_cifar100(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False,  **kwargs):
+def resnext29_cifar100(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
+                           L1mode=False, **kwargs):
     """Constructs a ResNeXt-50 Expansion=8 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
@@ -953,13 +994,15 @@ def resnext29_cifar100(pretrained=False, expansion = 4, x = 32, d = 4, upgroup =
         B = NeXtBottleneckO4
     elif expansion ==0.125 :
         B = NeXtBottleneckO8
+    elif expansion ==0.0625 :
+        B = NeXtBottleneckO16
         
         
     finer = x / 32.0
     wider = x * d / 128.0
     
     model = ResNeXt(B, [3, 3, 3], cifar=True, lastout = 8 , wider = wider , finer= finer, num_classes=100, \
-                    upgroup=upgroup, downgroup=downgroup, **kwargs)
+                    upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, **kwargs)
 
     return model
 

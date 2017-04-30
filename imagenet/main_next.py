@@ -75,6 +75,9 @@ parser.add_argument('--xp', '--expansion-coef', default=2, type=float,
 parser.add_argument('--x', '--num-channels', default=32, type=int,
                     metavar='N', help='expansion-coef')
 
+parser.add_argument('--nes', '--nesterov', default=1, type=int,
+                    metavar='N', help='expansion-coef')
+
 parser.add_argument('--d', '--channel-width', default=4, type=int,
                     metavar='N', help='expansion-coef')
 
@@ -83,6 +86,9 @@ parser.add_argument('--ug', '--up-group', default=0, type=int,
 
 parser.add_argument('--dg', '--down-group', default=0, type=int,
                     metavar='N', help='down-group')
+
+parser.add_argument('--L1', '--L1-mode', default=0, type=int,
+                    metavar='N', help='L1-mode, loss form')
 
 parser.add_argument('--nclass', '--num-classes', default=1000, type=int,
                     metavar='N', help='mini-batch size (default: 256)')
@@ -217,8 +223,8 @@ def main():
         
     # define loss function (criterion) and pptimizer
     #criterion = nn.CrossEntropyLoss().cuda()
-    if 'L1' in args.arch:
-        criterion = nn.L1Loss(size_average=False).cuda()
+    if 'L1' in args.arch or args.L1 == 1:
+        criterion = nn.L1Loss(size_average=True).cuda()
     elif 'my' in args.arch:
         criterion = nn.NLLLoss().cuda()
     else:
@@ -226,7 +232,7 @@ def main():
 
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
-                                weight_decay=args.weight_decay,nesterov=True)
+                                weight_decay=args.weight_decay,nesterov=False if args.nes == 0 else True)
 
     if args.evaluate:
         validate(val_loader, model, criterion)
@@ -268,10 +274,11 @@ def train(train_loader, model, criterion, optimizer, epoch):
         # measure data loading time
         data_time.update(time.time() - end)
         #print type(target.float())
-        if 'L1' in args.arch:
+        if 'L1' in args.arch or args.L1==1:
             targetTensor = np.zeros((args.batch_size, args.nclass))
             for j in range(args.batch_size):
                 targetTensor[j, target[j]] = 1.0
+            #targetTensor = targetTensor[:input.size[0],:input.size[1]]
             targetTensor = torch.FloatTensor(targetTensor)
             targetTensor = targetTensor.cuda(async=True)
             target = target.cuda(async=True)
@@ -325,10 +332,12 @@ def validate(val_loader, model, criterion):
     end = time.time()
     for i, (input, target) in enumerate(val_loader):
         
-        if 'L1' in args.arch:
+        if 'L1' in args.arch or args.L1 == 1:
             tmp = np.zeros((args.batch_size, args.nclass))
             for i in range(args.batch_size):
                 tmp[i, target[i]] = 1.0
+                
+            # tmp and input ???
             target = torch.FloatTensor(tmp)
             target = target.cuda(async=True)
         else:    
@@ -394,14 +403,13 @@ def adjust_learning_rate(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 10 every 30/30/30/30 epochs"""
     """The following pattern is just an example. Please modify yourself."""
     if args.lp > 0:
-        lr = args.lr * (0.1 ** (epoch >= args.lp)) * (0.1 ** (epoch >= (args.lp*2))) * (0.1 ** (epoch >= (args.lp*3))) * \
+        lr = args.lr * (0.1 ** (epoch >= args.lp)) * (0.1 ** (epoch >= (args.lp*1.5 ))) * (0.1 ** (epoch >= (args.lp*3))) * \
                     (0.1 ** (epoch >= (args.lp*4))) * (0.1 ** (epoch >= (args.lp*5)))
     else:
-        lr = 0.1 if ( epoch < 56 ) else (\
-                      0.01 if ( epoch < 86 ) else (0.001 if ( epoch < 116 ) else 0.0001 )\
-                      )
-        if 'L1' in args.arch:
-            lr = 1.0 * lr / args.batch_size / 1000
+        lr = args.lr if ( epoch < 400 ) else args.lr*0.1
+        if 'L1' in args.arch or args.L1 == 1:
+            lr = lr
+            #lr = lr * args.batch_size
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
