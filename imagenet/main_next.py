@@ -23,7 +23,6 @@ model_names = sorted(name for name in models.__dict__
 
 
 resnext_models = {'resnext50':resnext.resnext50,
-                  'resnext50_expand8':resnext.resnext50_expand8,
                   'resnext29_cifar10':resnext.resnext29_cifar10,
                   'resnext29_cifar100':resnext.resnext29_cifar100,
                   'resnext29_cifar100_bone':resnext.resnext29_cifar100_bone,
@@ -134,6 +133,10 @@ def main():
         model = resnext_models[args.arch](expansion = args.xp, x = args.x , d = args.d, \
                                          upgroup = True if args.ug else False, downgroup = True if args.dg else False)
     
+    
+    # get the number of model parameters
+    print('Number of model parameters: {}'.format(
+        sum([p.data.nelement() for p in model.parameters()])))
     
     if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
         model.features = torch.nn.DataParallel(model.features)
@@ -258,6 +261,8 @@ def main():
             'state_dict': model.state_dict(),
             'best_prec1': best_prec1,
         }, is_best)
+        print 'Current best accuracy: ', best_prec1
+    print 'Global best accuracy: ', best_prec1
 
 
 def train(train_loader, model, criterion, optimizer, epoch):
