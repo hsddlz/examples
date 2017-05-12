@@ -23,7 +23,6 @@ model_names = sorted(name for name in models.__dict__
 
 
 resnext_models = {'resnext50':resnext.resnext50,
-                  'resnext50_expand8':resnext.resnext50_expand8,
                   'resnext29_cifar10':resnext.resnext29_cifar10,
                   'resnext29_cifar100':resnext.resnext29_cifar100,
                   'resnext29_cifar100_bone':resnext.resnext29_cifar100_bone,
@@ -74,13 +73,16 @@ parser.add_argument('--xp', '--expansion-coef', default=2, type=float,
                     metavar='N', help='expansion-coef')
 
 parser.add_argument('--x', '--num-channels', default=32, type=int,
-                    metavar='N', help='expansion-coef')
+                    metavar='N', help='num of channels')
 
 parser.add_argument('--nes', '--nesterov', default=1, type=int,
-                    metavar='N', help='expansion-coef')
+                    metavar='N', help='nesterov momentum')
+
+parser.add_argument('--secord', '--second-order', default=0, type=int,
+                    metavar='N', help='second-order')
 
 parser.add_argument('--d', '--channel-width', default=4, type=int,
-                    metavar='N', help='expansion-coef')
+                    metavar='N', help='channel width')
 
 parser.add_argument('--ug', '--up-group', default=0, type=int,
                     metavar='N', help='up-group')
@@ -128,12 +130,18 @@ def main():
     if args.pretrained:
         print("=> using pre-trained model '{}'".format(args.arch))
         model = resnext_models[args.arch](pretrained=True, expansion = args.xp, x = args.x, d = args.d, \
-                                         upgroup = True if args.ug else False, downgroup = True if args.dg else False)
+                                         upgroup = True if args.ug else False, downgroup = True if args.dg else False,\
+                                         secord = True if args.secord else False)
     else:
         print("=> creating model '{}'".format(args.arch))
         model = resnext_models[args.arch](expansion = args.xp, x = args.x , d = args.d, \
-                                         upgroup = True if args.ug else False, downgroup = True if args.dg else False)
+                                         upgroup = True if args.ug else False, downgroup = True if args.dg else False,\
+                                         secord = True if args.secord else False)
     
+    
+    # get the number of model parameters
+    print('Number of model parameters: {}'.format(
+        sum([p.data.nelement() for p in model.parameters()])))
     
     if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
         model.features = torch.nn.DataParallel(model.features)
@@ -258,6 +266,8 @@ def main():
             'state_dict': model.state_dict(),
             'best_prec1': best_prec1,
         }, is_best)
+        print 'Current best accuracy: ', best_prec1
+    print 'Global best accuracy: ', best_prec1
 
 
 def train(train_loader, model, criterion, optimizer, epoch):
