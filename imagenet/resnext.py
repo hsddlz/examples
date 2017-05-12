@@ -76,6 +76,7 @@ class Bottleneck(nn.Module):
         self.conv3 = nn.Conv2d(planes, planes * 4, kernel_size=1, bias=False)
         self.bn3 = nn.BatchNorm2d(planes * 4)
         self.relu = nn.ReLU(inplace=True)
+        self.relu_ni = nn.ReLU(inplace=False)
         self.downsample = downsample
         self.stride = stride
 
@@ -101,206 +102,13 @@ class Bottleneck(nn.Module):
 
         return out
 
-class NeXtBottleneckO16(nn.Module):
-    expansion = 0.0625
-
-    def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1, upgroup=False, downgroup=False):
-        super(NeXtBottleneckO16, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
-        self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=int(32 * finer), stride=stride,
-                               padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, int(planes * 0.0625), kernel_size=1, groups=int(32 * finer) if downgroup else 1 , bias=False)
-        self.bn3 = nn.BatchNorm2d(int(planes * 0.0625))
-        self.relu = nn.ReLU(inplace=True)
-        self.downsample = downsample
-        self.stride = stride
-
-    def forward(self, x):
-        residual = x
-
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-
-        out = self.conv2(out)
-        out = self.bn2(out)
-        out = self.relu(out)
-
-        out = self.conv3(out)
-        out = self.bn3(out)
-
-        if self.downsample is not None:
-            residual = self.downsample(x)
-
-        out = out + residual
-        out = self.relu(out)
-
-        return out
-
-class NeXtBottleneckO8(nn.Module):
-    expansion = 0.125
-
-    def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1, upgroup=False, downgroup=False):
-        super(NeXtBottleneckO8, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
-        self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=int(32 * finer), stride=stride,
-                               padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, int(planes * 0.125), kernel_size=1, groups=int(32 * finer) if downgroup else 1 , bias=False)
-        self.bn3 = nn.BatchNorm2d(int(planes * 0.125))
-        self.relu = nn.ReLU(inplace=True)
-        self.downsample = downsample
-        self.stride = stride
-
-    def forward(self, x):
-        residual = x
-
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-
-        out = self.conv2(out)
-        out = self.bn2(out)
-        out = self.relu(out)
-
-        out = self.conv3(out)
-        out = self.bn3(out)
-
-        if self.downsample is not None:
-            residual = self.downsample(x)
-
-        out = out + residual
-        out = self.relu(out)
-
-        return out
-
-
-class NeXtBottleneckO4(nn.Module):
-    expansion = 0.25
-
-    def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1, upgroup=False, downgroup=False):
-        super(NeXtBottleneckO4, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
-        self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=int(32 * finer), stride=stride,
-                               padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, int(planes * 0.25), kernel_size=1, groups=int(32 * finer) if downgroup else 1, bias=False)
-        self.bn3 = nn.BatchNorm2d(int(planes * 0.25))
-        self.relu = nn.ReLU(inplace=True)
-        self.downsample = downsample
-        self.stride = stride
-
-    def forward(self, x):
-        residual = x
-
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-
-        out = self.conv2(out)
-        out = self.bn2(out)
-        out = self.relu(out)
-
-        out = self.conv3(out)
-        out = self.bn3(out)
-
-        if self.downsample is not None:
-            residual = self.downsample(x)
-
-        out = out + residual
-        out = self.relu(out)
-
-        return out
-
-class NeXtBottleneckO2(nn.Module):
-    expansion = 0.5
-
-    def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1, upgroup=False, downgroup=False):
-        super(NeXtBottleneckO2, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
-        self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=int(32 * finer), stride=stride,
-                               padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, int(planes * 0.5), kernel_size=1, groups=int(32 * finer) if downgroup else 1, bias=False)
-        self.bn3 = nn.BatchNorm2d(int(planes * 0.5))
-        self.relu = nn.ReLU(inplace=True)
-        self.downsample = downsample
-        self.stride = stride
-
-    def forward(self, x):
-        residual = x
-
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-
-        out = self.conv2(out)
-        out = self.bn2(out)
-        out = self.relu(out)
-
-        out = self.conv3(out)
-        out = self.bn3(out)
-
-        if self.downsample is not None:
-            residual = self.downsample(x)
-
-        out = out + residual
-        out = self.relu(out)
-
-        return out
-
-
-
-class NeXtBottleneck1(nn.Module):
-    expansion = 1
-
-    def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1, upgroup=False, downgroup=False):
-        super(NeXtBottleneck1, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
-        self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=int(32 * finer), stride=stride,
-                               padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, planes * 1, kernel_size=1, groups=int(32 * finer) if downgroup else 1, bias=False)
-        self.bn3 = nn.BatchNorm2d(planes * 1)
-        self.relu = nn.ReLU(inplace=True)
-        self.downsample = downsample
-        self.stride = stride
-
-    def forward(self, x):
-        residual = x
-
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-
-        out = self.conv2(out)
-        out = self.bn2(out)
-        out = self.relu(out)
-
-        out = self.conv3(out)
-        out = self.bn3(out)
-
-        if self.downsample is not None:
-            residual = self.downsample(x)
-
-        out = out + residual
-        out = self.relu(out)
-
-        return out
-
 class NeXtBottleneck(nn.Module):
     # expansion = 2
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1, upgroup=False, downgroup=False, \
-                 expansion = 2):
+                 expansion = 2, secord = False):
         super(NeXtBottleneck, self).__init__()
-        
+        self.secord = secord
         self.expansion = expansion
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
@@ -310,6 +118,7 @@ class NeXtBottleneck(nn.Module):
         self.conv3 = nn.Conv2d(planes, int(planes * expansion), kernel_size=1, groups=int(32 * finer) if downgroup else 1, bias=False)
         self.bn3 = nn.BatchNorm2d( int(planes * expansion) )
         self.relu = nn.ReLU(inplace=True)
+        self.relu_ni = nn.ReLU(inplace=False)
         self.downsample = downsample
         self.stride = stride
 
@@ -330,7 +139,10 @@ class NeXtBottleneck(nn.Module):
         if self.downsample is not None:
             residual = self.downsample(x)
 
-        out = out + residual
+        if not self.secord:
+            out = out + residual
+        else:
+            out = out + residual +  torch.sqrt ( torch.add( torch.mul( self.relu_ni(out),self.relu_ni(residual) ), 0.01 ))
         out = self.relu(out)
 
         return out
@@ -402,7 +214,7 @@ class ResNeXt(nn.Module):
 
     def __init__(self, block, layers, verticalfrac=False, fracparam=2, wider = 1, finer = 1,
                 lastout = 7 , num_classes=1000, upgroup = False, downgroup = False, \
-                cifar = False , multiway = 0, L1mode = False, changeloss = False, expansion = 2):
+                cifar = False , multiway = 0, L1mode = False, changeloss = False, expansion = 2, secord = False):
         self.inplanes = 64
         self.verticalfrac = verticalfrac
         self.fracparam = fracparam
@@ -411,6 +223,7 @@ class ResNeXt(nn.Module):
         self.changeloss = changeloss
         self.cifar = cifar
         self.expansion = expansion
+        self.secord = secord
 
         super(ResNeXt, self).__init__()
 
@@ -490,12 +303,12 @@ class ResNeXt(nn.Module):
 
         layers = []
         layers.append(block(self.inplanes, planes, stride, downsample, finer, upgroup=upgroup, downgroup=downgroup,\
-                           expansion = self.expansion))
+                           expansion = self.expansion, secord = self.secord))
 
         self.inplanes = int(planes * self.expansion)
         for i in range(1, blocks):
             layers.append(block(self.inplanes, planes, finer=finer, upgroup=upgroup, downgroup=downgroup, \
-                           expansion = self.expansion))
+                           expansion = self.expansion, secord = self.secord))
 
         if self.verticalfrac == False:
             return nn.Sequential(*layers)
@@ -935,7 +748,7 @@ def resnet50(pretrained=False, **kwargs):
 
 
 def resnext50(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False,\
-                              L1mode=False, num_classes = 1000, **kwargs):
+                              L1mode=False, num_classes = 1000, secord = 0, **kwargs):
     """Constructs a ResNeXt-50 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
@@ -971,14 +784,15 @@ def resnext50(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = False, d
     
     
     model = ResNeXt(B, [3, 4, 6, 3], cifar=False, lastout=7, wider = wider , finer= finer, num_classes = num_classes, \
-                    upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion = expansion, **kwargs)
+                    upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion = expansion, \
+                    secord = secord, **kwargs)
 
     return model
 
 
 
 def resnext29_cifar10(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False,\
-                              L1mode=False, **kwargs):
+                              L1mode=False, secord = 0, **kwargs):
     """Constructs a ResNeXt-29 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet??
@@ -1011,13 +825,15 @@ def resnext29_cifar10(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = 
     finer = x / 32.0
     wider = x * d / 128.0
 
+    
     model = ResNeXt(B, [3, 3, 3], cifar=True, lastout=8, wider = wider , finer= finer, num_classes=10, \
-                    upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion = expansion, **kwargs)
+                    upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion = expansion, \
+                    secord = secord,  **kwargs)
 
     return model
 
 def resnext29_cifar100(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
-                           L1mode=False, **kwargs):
+                           L1mode=False, secord = 0, **kwargs):
     
     """Constructs a ResNeXt-50 Expansion=8 model.
     Args:
@@ -1052,7 +868,8 @@ def resnext29_cifar100(pretrained=False, expansion = 4, x = 32, d = 4, upgroup =
     wider = x * d / 128.0
 
     model = ResNeXt(B, [3, 3, 3], cifar=True, lastout = 8 , wider = wider , finer= finer, num_classes=100, \
-                    upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion=expansion, **kwargs)
+                    upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion=expansion, \
+                    secord = secord, **kwargs)
 
     return model
 
