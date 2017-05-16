@@ -81,6 +81,9 @@ parser.add_argument('--nes', '--nesterov', default=1, type=int,
 parser.add_argument('--secord', '--second-order', default=0, type=int,
                     metavar='N', help='second-order')
 
+parser.add_argument('--soadd', '--second-order-add', default=0.01, type=float,
+                    metavar='N', help='second-order-add')
+
 parser.add_argument('--d', '--channel-width', default=4, type=int,
                     metavar='N', help='channel width')
 
@@ -131,12 +134,12 @@ def main():
         print("=> using pre-trained model '{}'".format(args.arch))
         model = resnext_models[args.arch](pretrained=True, expansion = args.xp, x = args.x, d = args.d, \
                                          upgroup = True if args.ug else False, downgroup = True if args.dg else False,\
-                                         secord = True if args.secord else False)
+                                         secord = True if args.secord else False, soadd = args.soadd)
     else:
         print("=> creating model '{}'".format(args.arch))
         model = resnext_models[args.arch](expansion = args.xp, x = args.x , d = args.d, \
                                          upgroup = True if args.ug else False, downgroup = True if args.dg else False,\
-                                         secord = True if args.secord else False)
+                                         secord = True if args.secord else False, soadd = args.soadd)
     
     
     # get the number of model parameters
