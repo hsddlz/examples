@@ -106,9 +106,10 @@ class NeXtBottleneck(nn.Module):
     # expansion = 2
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1, upgroup=False, downgroup=False, \
-                 expansion = 2, secord = False):
+                 expansion = 2, secord = False, soadd = 0.01):
         super(NeXtBottleneck, self).__init__()
         self.secord = secord
+        self.soadd = soadd
         self.expansion = expansion
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
@@ -142,7 +143,7 @@ class NeXtBottleneck(nn.Module):
         if not self.secord:
             out = out + residual
         else:
-            out = out + residual +  torch.sqrt ( torch.add( torch.mul( self.relu_ni(out),self.relu_ni(residual) ), 0.01 ))
+            out = out + residual +  torch.sqrt ( torch.add( torch.mul( self.relu_ni(out),self.relu_ni(residual) ), self.soadd ))
         out = self.relu(out)
 
         return out
@@ -214,7 +215,8 @@ class ResNeXt(nn.Module):
 
     def __init__(self, block, layers, verticalfrac=False, fracparam=2, wider = 1, finer = 1,
                 lastout = 7 , num_classes=1000, upgroup = False, downgroup = False, \
-                cifar = False , multiway = 0, L1mode = False, changeloss = False, expansion = 2, secord = False):
+                cifar = False , multiway = 0, L1mode = False, changeloss = False, expansion = 2,\
+                 secord = False, soadd = 0.01, att = False):
         self.inplanes = 64
         self.verticalfrac = verticalfrac
         self.fracparam = fracparam
@@ -224,6 +226,8 @@ class ResNeXt(nn.Module):
         self.cifar = cifar
         self.expansion = expansion
         self.secord = secord
+        self.soadd = soadd
+        self.attention = att
 
         super(ResNeXt, self).__init__()
 
@@ -303,12 +307,12 @@ class ResNeXt(nn.Module):
 
         layers = []
         layers.append(block(self.inplanes, planes, stride, downsample, finer, upgroup=upgroup, downgroup=downgroup,\
-                           expansion = self.expansion, secord = self.secord))
+                           expansion = self.expansion, secord = self.secord, soadd = self.soadd))
 
         self.inplanes = int(planes * self.expansion)
         for i in range(1, blocks):
             layers.append(block(self.inplanes, planes, finer=finer, upgroup=upgroup, downgroup=downgroup, \
-                           expansion = self.expansion, secord = self.secord))
+                           expansion = self.expansion, secord = self.secord, soadd = self.soadd))
 
         if self.verticalfrac == False:
             return nn.Sequential(*layers)
@@ -357,19 +361,30 @@ class ResNeXt(nn.Module):
                             tmpjump = tmpjump * self.fracparam
                 #print 'x = out_{bigidx}_{idx}'.format(bigidx=bigidx,idx=len(bigblock)-1)
                 exec('x = out_{bigidx}_{idx}'.format(bigidx=bigidx,idx=len(bigblock)-1))
-
-        x = self.avgpool(x)
-        x = x.view(x.size(0), -1)
-        if self.multiway <=0:
-            x = self.fc(x)
-            if self.changeloss:
-                x = self.sm(x)
+        if not self.attention:
+            x = self.avgpool(x)
+            x = x.view(x.size(0), -1)
+            if self.multiway <=0:
+                x = self.fc(x)
+                if self.changeloss:
+                    x = self.sm(x)
+            else:
+                xtmp = self.sm(  self.fc_0(x) )  # * ( 1.0 / self.multiway)
+                for i in range(1, self.multiway):
+                    exec('xtmp = xtmp + self.sm( self.fc_{0}(x) ) '.format(i) )
+                x = xtmp
         else:
-            xtmp = self.sm(  self.fc_0(x) )  # * ( 1.0 / self.multiway)
-            for i in range(1, self.multiway):
-                exec('xtmp = xtmp + self.sm( self.fc_{0}(x) ) '.format(i) )
-            x = xtmp
-
+            x = self.avgpool(x)
+            x = x.view(x.size(0), -1)
+            if self.multiway <=0:
+                x = self.fc(x)
+                if self.changeloss:
+                    x = self.sm(x)
+            else:
+                xtmp = self.sm(  self.fc_0(x) )  # * ( 1.0 / self.multiway)
+                for i in range(1, self.multiway):
+                    exec('xtmp = xtmp + self.sm( self.fc_{0}(x) ) '.format(i) )
+                x = xtmp
         return x
 
 
@@ -748,7 +763,7 @@ def resnet50(pretrained=False, **kwargs):
 
 
 def resnext50(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False,\
-                              L1mode=False, num_classes = 1000, secord = 0, **kwargs):
+                              L1mode=False, num_classes = 1000, secord = 0, soadd = 0.01, **kwargs):
     """Constructs a ResNeXt-50 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
@@ -785,14 +800,14 @@ def resnext50(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = False, d
     
     model = ResNeXt(B, [3, 4, 6, 3], cifar=False, lastout=7, wider = wider , finer= finer, num_classes = num_classes, \
                     upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion = expansion, \
-                    secord = secord, **kwargs)
+                    secord = secord, soadd = soadd, **kwargs)
 
     return model
 
 
 
 def resnext29_cifar10(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False,\
-                              L1mode=False, secord = 0, **kwargs):
+                              L1mode=False, secord = 0, soadd = 0.01, **kwargs):
     """Constructs a ResNeXt-29 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet??
@@ -828,12 +843,12 @@ def resnext29_cifar10(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = 
     
     model = ResNeXt(B, [3, 3, 3], cifar=True, lastout=8, wider = wider , finer= finer, num_classes=10, \
                     upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion = expansion, \
-                    secord = secord,  **kwargs)
+                    secord = secord, soadd = soadd,  **kwargs)
 
     return model
 
 def resnext29_cifar100(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
-                           L1mode=False, secord = 0, **kwargs):
+                           L1mode=False, secord = 0, soadd = 0.01, **kwargs):
     
     """Constructs a ResNeXt-50 Expansion=8 model.
     Args:
@@ -869,7 +884,7 @@ def resnext29_cifar100(pretrained=False, expansion = 4, x = 32, d = 4, upgroup =
 
     model = ResNeXt(B, [3, 3, 3], cifar=True, lastout = 8 , wider = wider , finer= finer, num_classes=100, \
                     upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion=expansion, \
-                    secord = secord, **kwargs)
+                    secord = secord, soadd = soadd, **kwargs)
 
     return model
 
