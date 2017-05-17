@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import math
 import copy
+import numpy as np
 #import torch.utils.model_zoo as model_zoo
 
 
@@ -217,7 +218,9 @@ class ResNeXt(nn.Module):
                 lastout = 7 , num_classes=1000, upgroup = False, downgroup = False, \
                 cifar = False , multiway = 0, L1mode = False, changeloss = False, expansion = 2,\
                  secord = False, soadd = 0.01, att = False):
+        self.lastout = lastout
         self.inplanes = 64
+        self.num_classes = num_classes
         self.verticalfrac = verticalfrac
         self.fracparam = fracparam
         self.multiway = multiway
@@ -249,9 +252,13 @@ class ResNeXt(nn.Module):
                                        upgroup = upgroup, downgroup = downgroup )
         self.layer3 = self._make_layer(block, int(wider * 512), layers[2], stride=2, finer = finer,\
                                        upgroup = upgroup, downgroup = downgroup )
+        
+        self.finaloutplane = int(wider*512*expansion)
+        
         if not self.cifar:
             self.layer4 = self._make_layer(block, int(wider * 1024), layers[3], stride=2, finer = finer, \
                                        upgroup = upgroup, downgroup = downgroup )
+            self.finaloutplane = int(wider*1024*expansion)
 
         if not self.cifar:
             L = [self.layer1,self.layer2,self.layer3,self.layer4]
@@ -374,8 +381,23 @@ class ResNeXt(nn.Module):
                     exec('xtmp = xtmp + self.sm( self.fc_{0}(x) ) '.format(i) )
                 x = xtmp
         else:
-            x = self.avgpool(x)
+            
+            newweight = torch.unsqueeze(torch.unsqueeze(self.fc.weight,2),3)
+            newbias = torch.unsqueeze(torch.unsqueeze(self.fc.bias,1),2)
+
+            x_side = torch.nn.functional.conv2d(x, weight = newweight, \
+                                                bias = newbias, stride=1, padding = 0)
+            
+            x_side = self.sm(x_side)
+            x_side_exp = torch.exp(x_side)
+            # x_attention = torch.exp(torch.sum(torch.mul(x_side,x_side_exp),dim=1))
+            #print 'num_classes: ', self.num_classes
+            x_attention = torch.add(torch.sum(torch.mul(x_side,x_side_exp),dim=1), np.log(self.num_classes))
+            x_finale = torch.mul(x, torch.cat([x_attention for i in range(self.finaloutplane)],1))
+            x = self.avgpool(x_finale)
             x = x.view(x.size(0), -1)
+            
+            
             if self.multiway <=0:
                 x = self.fc(x)
                 if self.changeloss:
