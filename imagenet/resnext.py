@@ -390,9 +390,9 @@ class ResNeXt(nn.Module):
             
             x_side = self.sm(x_side)
             x_side_exp = torch.exp(x_side)
-            # x_attention = torch.exp(torch.sum(torch.mul(x_side,x_side_exp),dim=1))
+            x_attention = torch.exp(torch.sum(torch.mul(x_side,x_side_exp),dim=1))
             #print 'num_classes: ', self.num_classes
-            x_attention = torch.add(torch.sum(torch.mul(x_side,x_side_exp),dim=1), np.log(self.num_classes))
+            #x_attention = torch.add(torch.sum(torch.mul(x_side,x_side_exp),dim=1), np.log(self.num_classes))
             x_finale = torch.mul(x, torch.cat([x_attention for i in range(self.finaloutplane)],1))
             x = self.avgpool(x_finale)
             x = x.view(x.size(0), -1)
