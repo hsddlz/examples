@@ -26,6 +26,8 @@ resnext_models = {'resnext50':resnext.resnext50,
                   'resnext29_cifar10':resnext.resnext29_cifar10,
                   'resnext29_cifar100':resnext.resnext29_cifar100,
                   'resnext29_cifar100_bone':resnext.resnext29_cifar100_bone,
+                  'resnext38_imagenet1k':resnext.resnext38_imagenet1k,
+                  'resnext38_inaturalist':resnext.resnext38_inaturalist,
                   'resnext50my':resnext.resnext50my,
                   'resnext50L1':resnext.resnext50L1,
                   'resnext50myL1':resnext.resnext50myL1,
@@ -86,6 +88,9 @@ parser.add_argument('--soadd', '--second-order-add', default=0.01, type=float,
 
 parser.add_argument('--att', '--attention-model', default=0, type=int,
                     metavar='N', help='attention')
+
+parser.add_argument('--lastout' , default= 7 , type=int,
+                    metavar='N', help='lastout')
 
 parser.add_argument('--d', '--channel-width', default=4, type=int,
                     metavar='N', help='channel width')
@@ -191,8 +196,8 @@ def main():
 
         val_loader = torch.utils.data.DataLoader(
             datasets.ImageFolder(valdir, transforms.Compose([
-                transforms.Scale(256),
-                transforms.CenterCrop(224),
+                transforms.Scale((args.lastout+1)*32),
+                transforms.CenterCrop(args.lastout*32),
                 transforms.ToTensor(),
                 normalize,
             ])),
