@@ -137,19 +137,23 @@ def main():
 
     # create model
     
+    if 'cifar' in args.arch:
+        print "CIFAR Model Fix args.arch As 8"
+        args.lastout = 8
+        
     
     if args.pretrained:
         print("=> using pre-trained model '{}'".format(args.arch))
         model = resnext_models[args.arch](pretrained=True, expansion = args.xp, x = args.x, d = args.d, \
                                          upgroup = True if args.ug else False, downgroup = True if args.dg else False,\
                                          secord = True if args.secord else False, soadd = args.soadd, \
-                                         att = True if args.att else False)
+                                         att = True if args.att else False, lastout = args.lastout)
     else:
         print("=> creating model '{}'".format(args.arch))
         model = resnext_models[args.arch](expansion = args.xp, x = args.x , d = args.d, \
                                          upgroup = True if args.ug else False, downgroup = True if args.dg else False,\
                                          secord = True if args.secord else False, soadd = args.soadd, \
-                                         att = True if args.att else False)
+                                         att = True if args.att else False, lastout = args.lastout)
     
     
     # get the number of model parameters
@@ -186,7 +190,7 @@ def main():
 
         train_loader = torch.utils.data.DataLoader(
             datasets.ImageFolder(traindir, transforms.Compose([
-                transforms.RandomSizedCrop(224),
+                transforms.RandomSizedCrop(args.lastout*32),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 normalize,
@@ -427,7 +431,7 @@ def adjust_learning_rate(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 10 every 30/30/30/30 epochs"""
     """The following pattern is just an example. Please modify yourself."""
     if args.lp > 0:
-        lr = args.lr * (0.1 ** (epoch >= args.lp)) * (0.1 ** (epoch >= (args.lp*1.5 ))) * (0.1 ** (epoch >= (args.lp*3))) * \
+        lr = args.lr * (0.1 ** (epoch >= args.lp)) * (0.1 ** (epoch >= (args.lp*1.5 ))) * (0.1 ** (epoch >= (args.lp*2))) * \
                     (0.1 ** (epoch >= (args.lp*4))) * (0.1 ** (epoch >= (args.lp*5)))
     else:
         lr = args.lr if ( epoch < 400 ) else args.lr*0.1
