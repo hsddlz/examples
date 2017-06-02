@@ -121,10 +121,17 @@ parser.add_argument('--my', '--multi-way', default=0, type=int,
 
 parser.add_argument('--print-freq', '-p', default=20, type=int,
                     metavar='N', help='print frequency (default: 20)')
+
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
+
+parser.add_argument('--dp', default='', type=str, metavar='Dilation Pattern (Vertical )',
+                   help='Dilation Pattern: LIN,EXP,REVLIN,REVEXP,HOURGLASS,SHUTTLE')
+
 parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
                     help='evaluate model on validation set')
+
+
 parser.add_argument('--pretrained', dest='pretrained', action='store_true',
                     help='use pre-trained model')
 
@@ -147,13 +154,13 @@ def main():
         model = resnext_models[args.arch](pretrained=True, expansion = args.xp, x = args.x, d = args.d, \
                                          upgroup = True if args.ug else False, downgroup = True if args.dg else False,\
                                          secord = True if args.secord else False, soadd = args.soadd, \
-                                         att = True if args.att else False, lastout = args.lastout)
+                                         att = True if args.att else False, lastout = args.lastout, dilpat = args.dp)
     else:
         print("=> creating model '{}'".format(args.arch))
         model = resnext_models[args.arch](expansion = args.xp, x = args.x , d = args.d, \
                                          upgroup = True if args.ug else False, downgroup = True if args.dg else False,\
                                          secord = True if args.secord else False, soadd = args.soadd, \
-                                         att = True if args.att else False, lastout = args.lastout)
+                                         att = True if args.att else False, lastout = args.lastout, dilpat = args.dp)
     
     
     # get the number of model parameters
@@ -197,16 +204,31 @@ def main():
             ])),
             batch_size=args.batch_size, shuffle=True,
             num_workers=args.workers, pin_memory=True)
-
-        val_loader = torch.utils.data.DataLoader(
-            datasets.ImageFolder(valdir, transforms.Compose([
-                transforms.Scale((args.lastout+1)*32),
-                transforms.CenterCrop(args.lastout*32),
-                transforms.ToTensor(),
-                normalize,
-            ])),
-            batch_size=args.batch_size, shuffle=False,
-            num_workers=args.workers, pin_memory=True)
+        
+        if args.evaluate:
+            
+            val_loader = torch.utils.data.DataLoader(
+                datasets.ImageFolder(valdir, transforms.Compose([
+                    transforms.RandomSizedCrop((args.lastout+1)*32),
+                    transforms.CenterCrop(args.lastout*32),
+                    transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                    normalize,
+                ])),
+                batch_size=args.batch_size, shuffle=False,
+                num_workers=args.workers, pin_memory=True)
+            
+        else:
+            
+            val_loader = torch.utils.data.DataLoader(
+                datasets.ImageFolder(valdir, transforms.Compose([
+                    transforms.Scale((args.lastout+1)*32),
+                    transforms.CenterCrop(args.lastout*32),
+                    transforms.ToTensor(),
+                    normalize,
+                ])),
+                batch_size=args.batch_size, shuffle=False,
+                num_workers=args.workers, pin_memory=True)
         
     elif args.ds in ["CIFAR10","CIFAR100"]:
         normalize = transforms.Normalize(mean=[x/255.0 for x in [125.3, 123.0, 113.9]],
@@ -231,7 +253,7 @@ def main():
                              batch_size=args.batch_size, shuffle=True, num_workers=args.workers, pin_memory=True)
             val_loader = torch.utils.data.DataLoader(
                 datasets.CIFAR10('../data', train=False, transform=transform_test),
-                batch_size=args.batch_size, shuffle=True, num_workers=args.workers, pin_memory=True)
+                batch_size=args.batch_size, shuffle=False, num_workers=args.workers, pin_memory=True)
         else:
             
             train_loader = torch.utils.data.DataLoader(
@@ -240,7 +262,7 @@ def main():
                              batch_size=args.batch_size, shuffle=True, num_workers=args.workers, pin_memory=True)
             val_loader = torch.utils.data.DataLoader(
                 datasets.CIFAR100('../data', train=False, transform=transform_test),
-                batch_size=args.batch_size, shuffle=True, num_workers=args.workers, pin_memory=True)
+                batch_size=args.batch_size, shuffle=False, num_workers=args.workers, pin_memory=True)
         
     else:
         print "Unrecognized Dataset. Halt."
@@ -403,6 +425,11 @@ def validate(val_loader, model, criterion):
     return top1.avg
 
 
+def test_output(val_loader, model):
+    
+    return None
+
+
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     torch.save(state, filename)
     if is_best:
@@ -432,7 +459,7 @@ def adjust_learning_rate(optimizer, epoch):
     """The following pattern is just an example. Please modify yourself."""
     if args.lp > 0:
         lr = args.lr * (0.1 ** (epoch >= args.lp)) * (0.1 ** (epoch >= (args.lp*1.5 ))) * (0.1 ** (epoch >= (args.lp*2))) * \
-                    (0.1 ** (epoch >= (args.lp*4))) * (0.1 ** (epoch >= (args.lp*5)))
+                    (0.1 ** (epoch >= (args.lp*2.5))) * (0.1 ** (epoch >= (args.lp*5)))
     else:
         lr = args.lr if ( epoch < 400 ) else args.lr*0.1
         if 'L1' in args.arch or args.L1 == 1:

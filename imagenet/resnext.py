@@ -107,7 +107,7 @@ class NeXtBottleneck(nn.Module):
     # expansion = 2
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1, upgroup=False, downgroup=False, \
-                 expansion = 2, secord = False, soadd = 0.01):
+                 expansion = 2, secord = False, soadd = 0.01, dil = 1):
         super(NeXtBottleneck, self).__init__()
         self.secord = secord
         self.soadd = soadd
@@ -115,7 +115,7 @@ class NeXtBottleneck(nn.Module):
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=int(32 * finer), stride=stride,
-                               padding=1, bias=False)
+                               padding=dil, dilation=dil, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
         self.conv3 = nn.Conv2d(planes, int(planes * expansion), kernel_size=1, groups=int(32 * finer) if downgroup else 1, bias=False)
         self.bn3 = nn.BatchNorm2d( int(planes * expansion) )
@@ -217,7 +217,7 @@ class ResNeXt(nn.Module):
     def __init__(self, block, layers, verticalfrac=False, fracparam=2, wider = 1, finer = 1,
                 lastout = 7 , num_classes=1000, upgroup = False, downgroup = False, \
                 cifar = False , multiway = 0, L1mode = False, changeloss = False, expansion = 2,\
-                 secord = False, soadd = 0.01, att = False):
+                 secord = False, soadd = 0.01, att = False, dilpat = ''):
         self.lastout = lastout
         self.inplanes = 64
         self.num_classes = num_classes
@@ -231,6 +231,7 @@ class ResNeXt(nn.Module):
         self.secord = secord
         self.soadd = soadd
         self.attention = att
+        self.dilpat = dilpat
 
         super(ResNeXt, self).__init__()
 
@@ -247,17 +248,17 @@ class ResNeXt(nn.Module):
 
         #if self.verticalfrac==False:
         self.layer1 = self._make_layer(block, int(wider * 128), layers[0], finer = finer,\
-                                       upgroup = upgroup, downgroup = downgroup )
+                                       upgroup = upgroup, downgroup = downgroup, dilpat = dilpat )
         self.layer2 = self._make_layer(block, int(wider * 256), layers[1], stride=2, finer = finer,\
-                                       upgroup = upgroup, downgroup = downgroup )
+                                       upgroup = upgroup, downgroup = downgroup, dilpat = dilpat )
         self.layer3 = self._make_layer(block, int(wider * 512), layers[2], stride=2, finer = finer,\
-                                       upgroup = upgroup, downgroup = downgroup )
+                                       upgroup = upgroup, downgroup = downgroup, dilpat = dilpat )
         
         self.finaloutplane = int(wider*512*expansion)
         
         if not self.cifar:
             self.layer4 = self._make_layer(block, int(wider * 1024), layers[3], stride=2, finer = finer, \
-                                       upgroup = upgroup, downgroup = downgroup )
+                                       upgroup = upgroup, downgroup = downgroup, dilpat = dilpat )
             self.finaloutplane = int(wider*1024*expansion)
 
         if not self.cifar:
@@ -294,7 +295,7 @@ class ResNeXt(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
-    def _make_layer(self, block, planes, blocks, stride=1, finer=1, upgroup=False, downgroup=False):
+    def _make_layer(self, block, planes, blocks, stride=1, finer=1, upgroup=False, downgroup=False, dilpat = ''):
         '''
         downsample = None
 
@@ -313,13 +314,35 @@ class ResNeXt(nn.Module):
             )
 
         layers = []
+        
+        if dilpat == 'LIN':
+            dilate_plan = [i+1 for i in range(blocks)]
+        elif dilpat == 'REVLIN':
+            dilate_plan = [blocks-i for i in range(blocks)]
+        elif dilpat == 'EXP':
+            dilate_plan = [2**i for i in range(blocks)]
+        elif dilpat == 'REVEXP':
+            dilate_plan = [2**(blocks-1-i) for i in range(blocks)]
+        elif dilpat == "SHUTTLE":
+            dilate_plan1 = [i+1 for i in range(blocks)]
+            dilate_plan2 = [blocks-i for i in range(blocks)]
+            dilate_plan = [min(i,j) for i,j in zip(dilate_plan1,dilate_plan2)]
+        elif dilpat == "HOURGLASS":
+            dilate_plan1 = [i+1 for i in range(blocks)]
+            dilate_plan2 = [blocks-i for i in range(blocks)]
+            dilate_plan = [(blocks+3)//2 - min(i,j) for i,j in zip(dilate_plan1,dilate_plan2)]
+        else:
+            dilate_plan = [1 for i in range(blocks)]
+            
+        
+        
         layers.append(block(self.inplanes, planes, stride, downsample, finer, upgroup=upgroup, downgroup=downgroup,\
-                           expansion = self.expansion, secord = self.secord, soadd = self.soadd))
+                           expansion = self.expansion, secord = self.secord, soadd = self.soadd, dil = dilate_plan[0]))
 
         self.inplanes = int(planes * self.expansion)
         for i in range(1, blocks):
             layers.append(block(self.inplanes, planes, finer=finer, upgroup=upgroup, downgroup=downgroup, \
-                           expansion = self.expansion, secord = self.secord, soadd = self.soadd))
+                           expansion = self.expansion, secord = self.secord, soadd = self.soadd, dil = dilate_plan[i]))
 
         if self.verticalfrac == False:
             return nn.Sequential(*layers)
