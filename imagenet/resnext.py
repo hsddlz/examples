@@ -852,7 +852,7 @@ def resnext50(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = False, d
 
 
 
-def resnext29_cifar10(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False,\
+def resnext29_cifar10(pretrained=False, lastout=8, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False,\
                               L1mode=False, secord = 0, soadd = 0.01, att = False, **kwargs):
     """Constructs a ResNeXt-29 model.
     Args:
@@ -887,13 +887,13 @@ def resnext29_cifar10(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = 
     wider = x * d / 128.0
 
     
-    model = ResNeXt(B, [3, 3, 3], cifar=True, lastout=8, wider = wider , finer= finer, num_classes=10, \
+    model = ResNeXt(B, [3, 3, 3], cifar=True, lastout=lastout, wider = wider , finer= finer, num_classes=10, \
                     upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion = expansion, \
                     secord = secord, soadd = soadd, att= att,  **kwargs)
 
     return model
 
-def resnext29_cifar100(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
+def resnext29_cifar100(pretrained=False, lastout=8, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
                            L1mode=False, secord = 0, soadd = 0.01, att = False,  **kwargs):
     
     """Constructs a ResNeXt-50 Expansion=8 model.
@@ -928,7 +928,7 @@ def resnext29_cifar100(pretrained=False, expansion = 4, x = 32, d = 4, upgroup =
     finer = x / 32.0
     wider = x * d / 128.0
 
-    model = ResNeXt(B, [3, 3, 3], cifar=True, lastout = 8 , wider = wider , finer= finer, num_classes=100, \
+    model = ResNeXt(B, [3, 3, 3], cifar=True, lastout = lastout , wider = wider , finer= finer, num_classes=100, \
                     upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion=expansion, \
                     secord = secord, soadd = soadd, att = att, **kwargs)
 
@@ -968,7 +968,7 @@ def resnext29_cifar100_bone(pretrained=False, expansion = 4, x = 32, d = 4, upgr
     finer = x / 32.0
     wider = x * d / 128.0
 
-    model = ResNeXt_Bone(B, [3, 3, 3], cifar=True, lastout = 8 , wider = wider , finer= finer, num_classes=100, \
+    model = ResNeXt_Bone(B, [3, 3, 3], cifar=True, lastout = lastout , wider = wider , finer= finer, num_classes=100, \
                     upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion = expansion, **kwargs)
 
     return model

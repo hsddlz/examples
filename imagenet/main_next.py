@@ -145,8 +145,8 @@ def main():
     # create model
     
     if 'cifar' in args.arch:
-        print "CIFAR Model Fix args.arch As 8"
-        args.lastout = 8
+        print "CIFAR Model Fix args.lastout As 8"
+        args.lastout += 1
         
     
     if args.pretrained:
