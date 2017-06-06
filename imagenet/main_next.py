@@ -4,6 +4,8 @@ import shutil
 import time
 
 import numpy as np
+import pandas as pd
+
 import torch
 import torch.nn as nn
 import torch.nn.parallel
@@ -128,7 +130,7 @@ parser.add_argument('--resume', default='', type=str, metavar='PATH',
 parser.add_argument('--dp', default='', type=str, metavar='Dilation Pattern (Vertical )',
                    help='Dilation Pattern: LIN,EXP,REVLIN,REVEXP,HOURGLASS,SHUTTLE')
 
-parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
+parser.add_argument('-e', '--evaluate', default=0, type=int, metavar='N',
                     help='evaluate model on validation set')
 
 
@@ -205,7 +207,7 @@ def main():
             batch_size=args.batch_size, shuffle=True,
             num_workers=args.workers, pin_memory=True)
         
-        if args.evaluate:
+        if args.evaluate>1:
             
             val_loader = torch.utils.data.DataLoader(
                 datasets.ImageFolder(valdir, transforms.Compose([
@@ -282,8 +284,13 @@ def main():
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay,nesterov=False if args.nes == 0 else True)
 
-    if args.evaluate:
-        validate(val_loader, model, criterion)
+    if args.evaluate > 1:
+        NUM_MULTICROP = 10
+        for i in range(NUM_MULTICROP):
+            test_output(val_loader, model, 'Result_{0}'.format(i))
+        return
+    elif args.evaluate == 1:
+        test_output(val_loader, model, 'Result_00')
         return
 
     for epoch in range(args.start_epoch, args.epochs):
@@ -425,9 +432,40 @@ def validate(val_loader, model, criterion):
     return top1.avg
 
 
-def test_output(val_loader, model):
+def test_output(val_loader, model, output_name):
+    batch_time = AverageMeter()
+
+    # switch to evaluate mode
+    model.eval()
+
+    end = time.time()
     
-    return None
+    finalres = []
+    for i, (input, target) in enumerate(val_loader):
+        #if i>5:
+        #    break
+        if 'L1' in args.arch or args.L1 == 1:
+            tmp = np.zeros((args.batch_size, args.nclass))
+            for i in range(args.batch_size):
+                tmp[i, target[i]] = 1.0
+                
+            # tmp and input ???
+            target = torch.FloatTensor(tmp)
+            target = target.cuda(async=True)
+        else:    
+            target = target.cuda(async=True)
+            
+        input_var = torch.autograd.Variable(input, volatile=True)
+        target_var = torch.autograd.Variable(target, volatile=True)
+
+        # compute output
+        output = model(input_var)
+        output = output.data.cpu().numpy()
+        print i, output.shape
+        finalres.append(pd.DataFrame(output))
+    
+    pd.concat(finalres,axis=0).to_hdf(output_name+'.hdf','result')
+    print 'Finished Writing to HDF5 File.'
 
 
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
