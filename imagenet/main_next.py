@@ -30,6 +30,8 @@ resnext_models = {'resnext50':resnext.resnext50,
                   'resnext29_cifar100_bone':resnext.resnext29_cifar100_bone,
                   'resnext38_imagenet1k':resnext.resnext38_imagenet1k,
                   'resnext38_inaturalist':resnext.resnext38_inaturalist,
+                  'resnext56_imagenet1k':resnext.resnext56_imagenet1k,
+                  'resnext56_inaturalist':resnext.resnext56_inaturalist,
                   'resnext50my':resnext.resnext50my,
                   'resnext50L1':resnext.resnext50L1,
                   'resnext50myL1':resnext.resnext50myL1,
@@ -133,6 +135,9 @@ parser.add_argument('--dp', default='', type=str, metavar='Dilation Pattern (Ver
 parser.add_argument('-e', '--evaluate', default=0, type=int, metavar='N',
                     help='evaluate model on validation set')
 
+parser.add_argument('--evalmodnum', default=1, type=int, metavar='N',
+                    help='evaluate expansion')
+
 
 parser.add_argument('--pretrained', dest='pretrained', action='store_true',
                     help='use pre-trained model')
@@ -211,14 +216,14 @@ def main():
             
             val_loader = torch.utils.data.DataLoader(
                 datasets.ImageFolder(valdir, transforms.Compose([
-                    transforms.RandomSizedCrop((args.lastout+1)*32),
+                    transforms.RandomSizedCrop((args.lastout+args.evalmodnum)*32),
                     transforms.CenterCrop(args.lastout*32),
                     transforms.RandomHorizontalFlip(),
                     transforms.ToTensor(),
                     normalize,
                 ])),
                 batch_size=args.batch_size, shuffle=False,
-                num_workers=args.workers, pin_memory=True)
+            num_workers=args.workers, pin_memory=True)
             
         else:
             
@@ -285,9 +290,9 @@ def main():
                                 weight_decay=args.weight_decay,nesterov=False if args.nes == 0 else True)
 
     if args.evaluate > 1:
-        NUM_MULTICROP = 10
-        for i in range(NUM_MULTICROP):
-            test_output(val_loader, model, 'Result_{0}'.format(i))
+        NUM_MULTICROP = 1
+        for i in range(0,NUM_MULTICROP):
+            test_output(val_loader, model, 'Result_{0}_{1}'.format(i,args.evalmodnum))
         return
     elif args.evaluate == 1:
         test_output(val_loader, model, 'Result_00')

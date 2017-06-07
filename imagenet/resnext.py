@@ -981,29 +981,6 @@ def resnext38_imagenet1k(pretrained=False, lastout = 7, expansion = 4, x = 32, d
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    
-    '''
-    if expansion == 4:
-        B = NeXtBottleneck4
-    elif expansion == 8:
-        B = NeXtBottleneck8
-    elif expansion == 16:
-        B = NeXtBottleneck16
-    elif expansion == 32:
-        B = NeXtBottleneck32
-    elif expansion ==2 :
-        B = NeXtBottleneck
-    elif expansion ==1 :
-        B = NeXtBottleneck1
-    elif expansion ==0.5 :
-        B = NeXtBottleneckO2
-    elif expansion ==0.25 :
-        B = NeXtBottleneckO4
-    elif expansion ==0.125 :
-        B = NeXtBottleneckO8
-    elif expansion ==0.0625 :
-        B = NeXtBottleneckO16
-    '''
     B = NeXtBottleneck
 
     finer = x / 32.0
@@ -1015,6 +992,25 @@ def resnext38_imagenet1k(pretrained=False, lastout = 7, expansion = 4, x = 32, d
 
     return model
 
+def resnext56_imagenet1k(pretrained=False, lastout = 7, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
+                           L1mode=False, secord = 0, soadd = 0.01, att = False, **kwargs):
+    
+    """Constructs a ResNeXt-50 Expansion=8 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    B = NeXtBottleneck
+
+    finer = x / 32.0
+    wider = x * d / 128.0
+
+    model = ResNeXt(B, [3, 4, 5, 6], cifar=False, lastout = lastout , wider = wider , finer= finer, num_classes=1000, \
+                    upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion=expansion, \
+                    secord = secord, soadd = soadd, att = att, **kwargs)
+
+    return model
+
+
 
 def resnext38_inaturalist(pretrained=False, lastout = 7, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
                            L1mode=False, secord = 0, soadd = 0.01, att = False, **kwargs):
@@ -1023,35 +1019,31 @@ def resnext38_inaturalist(pretrained=False, lastout = 7, expansion = 4, x = 32, 
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    
-    '''
-    if expansion == 4:
-        B = NeXtBottleneck4
-    elif expansion == 8:
-        B = NeXtBottleneck8
-    elif expansion == 16:
-        B = NeXtBottleneck16
-    elif expansion == 32:
-        B = NeXtBottleneck32
-    elif expansion ==2 :
-        B = NeXtBottleneck
-    elif expansion ==1 :
-        B = NeXtBottleneck1
-    elif expansion ==0.5 :
-        B = NeXtBottleneckO2
-    elif expansion ==0.25 :
-        B = NeXtBottleneckO4
-    elif expansion ==0.125 :
-        B = NeXtBottleneckO8
-    elif expansion ==0.0625 :
-        B = NeXtBottleneckO16
-    '''
     B = NeXtBottleneck
 
     finer = x / 32.0
     wider = x * d / 128.0
 
     model = ResNeXt(B, [3, 3, 3, 3], cifar=False, lastout = lastout , wider = wider , finer= finer, num_classes=5089, \
+                    upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion=expansion, \
+                    secord = secord, soadd = soadd, att = att, **kwargs)
+
+    return model
+
+
+def resnext56_inaturalist(pretrained=False, lastout = 7, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
+                           L1mode=False, secord = 0, soadd = 0.01, att = False, **kwargs):
+    
+    """Constructs a ResNeXt-50 Expansion=8 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    B = NeXtBottleneck
+
+    finer = x / 32.0
+    wider = x * d / 128.0
+
+    model = ResNeXt(B, [3, 4, 5, 6], cifar=False, lastout = lastout , wider = wider , finer= finer, num_classes=5089, \
                     upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion=expansion, \
                     secord = secord, soadd = soadd, att = att, **kwargs)
 
