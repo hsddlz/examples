@@ -30,8 +30,8 @@ resnext_models = {'resnext50':resnext.resnext50,
                   'resnext29_cifar100_bone':resnext.resnext29_cifar100_bone,
                   'resnext38_imagenet1k':resnext.resnext38_imagenet1k,
                   'resnext38_inaturalist':resnext.resnext38_inaturalist,
-                  'resnext56_imagenet1k':resnext.resnext56_imagenet1k,
-                  'resnext56_inaturalist':resnext.resnext56_inaturalist,
+                  'resnext50_imagenet1k':resnext.resnext56_imagenet1k,
+                  'resnext50_inaturalist':resnext.resnext56_inaturalist,
                   'resnext50my':resnext.resnext50my,
                   'resnext50L1':resnext.resnext50L1,
                   'resnext50myL1':resnext.resnext50myL1,
@@ -216,7 +216,7 @@ def main():
             
             val_loader = torch.utils.data.DataLoader(
                 datasets.ImageFolder(valdir, transforms.Compose([
-                    transforms.RandomSizedCrop((args.lastout+args.evalmodnum)*32),
+                    transforms.Scale((args.lastout+args.evalmodnum)*32),
                     transforms.CenterCrop(args.lastout*32),
                     transforms.RandomHorizontalFlip(),
                     transforms.ToTensor(),

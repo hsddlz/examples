@@ -992,7 +992,7 @@ def resnext38_imagenet1k(pretrained=False, lastout = 7, expansion = 4, x = 32, d
 
     return model
 
-def resnext56_imagenet1k(pretrained=False, lastout = 7, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
+def resnext50_imagenet1k(pretrained=False, lastout = 7, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
                            L1mode=False, secord = 0, soadd = 0.01, att = False, **kwargs):
     
     """Constructs a ResNeXt-50 Expansion=8 model.
@@ -1004,7 +1004,7 @@ def resnext56_imagenet1k(pretrained=False, lastout = 7, expansion = 4, x = 32, d
     finer = x / 32.0
     wider = x * d / 128.0
 
-    model = ResNeXt(B, [3, 4, 5, 6], cifar=False, lastout = lastout , wider = wider , finer= finer, num_classes=1000, \
+    model = ResNeXt(B, [3, 4, 6, 3], cifar=False, lastout = lastout , wider = wider , finer= finer, num_classes=1000, \
                     upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion=expansion, \
                     secord = secord, soadd = soadd, att = att, **kwargs)
 
@@ -1031,7 +1031,7 @@ def resnext38_inaturalist(pretrained=False, lastout = 7, expansion = 4, x = 32, 
     return model
 
 
-def resnext56_inaturalist(pretrained=False, lastout = 7, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
+def resnext50_inaturalist(pretrained=False, lastout = 7, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
                            L1mode=False, secord = 0, soadd = 0.01, att = False, **kwargs):
     
     """Constructs a ResNeXt-50 Expansion=8 model.
@@ -1043,7 +1043,7 @@ def resnext56_inaturalist(pretrained=False, lastout = 7, expansion = 4, x = 32, 
     finer = x / 32.0
     wider = x * d / 128.0
 
-    model = ResNeXt(B, [3, 4, 5, 6], cifar=False, lastout = lastout , wider = wider , finer= finer, num_classes=5089, \
+    model = ResNeXt(B, [3, 4, 6, 3], cifar=False, lastout = lastout , wider = wider , finer= finer, num_classes=5089, \
                     upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion=expansion, \
                     secord = secord, soadd = soadd, att = att, **kwargs)
 
