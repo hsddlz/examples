@@ -69,7 +69,6 @@ for i in range(1,7):
         CleanDF = tmpCleanDF
     else:
         CleanDF = CleanDF + tmpCleanDF
-    del(tmpDF)
     DF = pd.DataFrame(CleanDF)
     DF['true_id'] = DF.index.map(lambda x: sampleDict[NamerDict[x]] )
     DF = DF.sort_values('true_id')

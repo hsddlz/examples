@@ -138,6 +138,8 @@ parser.add_argument('-e', '--evaluate', default=0, type=int, metavar='N',
 parser.add_argument('--evalmodnum', default=1, type=int, metavar='N',
                     help='evaluate expansion')
 
+parser.add_argument('--evaltardir', default='./', type=str, metavar='N',
+                    help='evaluate dir')
 
 parser.add_argument('--pretrained', dest='pretrained', action='store_true',
                     help='use pre-trained model')
@@ -212,12 +214,26 @@ def main():
             batch_size=args.batch_size, shuffle=True,
             num_workers=args.workers, pin_memory=True)
         
-        if args.evaluate>1:
+        if args.evaluate == 2:
             
             val_loader = torch.utils.data.DataLoader(
                 datasets.ImageFolder(valdir, transforms.Compose([
                     transforms.Scale((args.lastout+args.evalmodnum)*32),
                     transforms.CenterCrop(args.lastout*32),
+                    transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                    normalize,
+                ])),
+                batch_size=args.batch_size, shuffle=False,
+            num_workers=args.workers, pin_memory=True)
+        
+        if args.evaluate == 3:
+            
+            val_loader = torch.utils.data.DataLoader(
+                datasets.ImageFolder(valdir, transforms.Compose([
+                    transforms.Scale((args.lastout+args.evalmodnum)*32),
+                    transforms.RandomCrop((args.lastout+args.evalmodnum)*32),
+                    transforms.RandomCrop(args.lastout*32),
                     transforms.RandomHorizontalFlip(),
                     transforms.ToTensor(),
                     normalize,
@@ -289,11 +305,31 @@ def main():
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay,nesterov=False if args.nes == 0 else True)
 
-    if args.evaluate > 1:
+    if args.evaluate == 2 :
         NUM_MULTICROP = 1
         for i in range(0,NUM_MULTICROP):
-            test_output(val_loader, model, 'Result_{0}_{1}'.format(i,args.evalmodnum))
+            test_output(val_loader, model, 'Result_{0}_{1}_{2}'.format(args.evaluate, i, args.evalmodnum))
         return
+    
+    elif args.evaluate == 3 :
+        NUM_MULTICROP = 36
+        for i in range(0,NUM_MULTICROP):
+            # Reset Val_Loader!!
+            val_loader = torch.utils.data.DataLoader(
+                datasets.ImageFolder(valdir, transforms.Compose([
+                    transforms.Scale((args.lastout+args.evalmodnum)*32),
+                    transforms.RandomCrop((args.lastout+args.evalmodnum)*32),
+                    transforms.RandomCrop(args.lastout*32),
+                    transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                    normalize,
+                ])),
+                batch_size=args.batch_size, shuffle=False,
+            num_workers=args.workers, pin_memory=True)
+            # Test
+            test_output(val_loader, model, args.evaltardir+'Result_{0}_{1}_{2}'.format(args.evaluate, i, args.evalmodnum))
+        return
+    
     elif args.evaluate == 1:
         test_output(val_loader, model, 'Result_00')
         return
