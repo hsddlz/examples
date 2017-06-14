@@ -19,6 +19,8 @@ import torchvision.models as models
 import resnext
 import meta_model.FractAllNeXt
 
+
+
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
     and callable(models.__dict__[name]))
@@ -132,6 +134,9 @@ parser.add_argument('--resume', default='', type=str, metavar='PATH',
 parser.add_argument('--dp', default='', type=str, metavar='Dilation Pattern (Vertical )',
                    help='Dilation Pattern: LIN,EXP,REVLIN,REVEXP,HOURGLASS,SHUTTLE')
 
+parser.add_argument('--df', default=0, type=int, metavar='Deformable Flag',
+                   help='Deformable Flag: Whether Deformable? May Cause Parameter Inflation')
+
 parser.add_argument('-e', '--evaluate', default=0, type=int, metavar='N',
                     help='evaluate model on validation set')
 
@@ -163,7 +168,8 @@ def main():
         model = resnext_models[args.arch](pretrained=True, expansion = args.xp, x = args.x, d = args.d, \
                                          upgroup = True if args.ug else False, downgroup = True if args.dg else False,\
                                          secord = True if args.secord else False, soadd = args.soadd, \
-                                         att = True if args.att else False, lastout = args.lastout, dilpat = args.dp)
+                                         att = True if args.att else False, lastout = args.lastout, dilpat = args.dp, \
+                                         deform = True if args.df else False)
     else:
         print("=> creating model '{}'".format(args.arch))
         model = resnext_models[args.arch](expansion = args.xp, x = args.x , d = args.d, \
@@ -313,7 +319,7 @@ def main():
     
     elif args.evaluate == 3 :
         NUM_MULTICROP = 36
-        for i in range(0,NUM_MULTICROP):
+        for i in range(10,NUM_MULTICROP):
             # Reset Val_Loader!!
             val_loader = torch.utils.data.DataLoader(
                 datasets.ImageFolder(valdir, transforms.Compose([
