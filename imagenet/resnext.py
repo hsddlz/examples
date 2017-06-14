@@ -261,11 +261,11 @@ class ResNeXt(nn.Module):
 
         #if self.verticalfrac==False:
         self.layer1 = self._make_layer(block, int(wider * 128), layers[0], finer = finer,\
-                                       upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, deform = deform)
+                                       upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, deform = False)
         self.layer2 = self._make_layer(block, int(wider * 256), layers[1], stride=2, finer = finer,\
-                                       upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, deform = deform )
+                                       upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, deform = False )
         self.layer3 = self._make_layer(block, int(wider * 512), layers[2], stride=2, finer = finer,\
-                                       upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, deform = deform )
+                                       upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, deform = False )
         
         self.finaloutplane = int(wider*512*expansion)
         
