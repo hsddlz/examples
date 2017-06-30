@@ -269,6 +269,8 @@ class ResNeXt(nn.Module):
         
         self.finaloutplane = int(wider*512*expansion)
         
+        # Possible We May Use wider * 1024 * (2 if deform else 1)
+        
         if not self.cifar:
             self.layer4 = self._make_layer(block, int(wider * 1024), layers[3], stride=2, finer = finer, \
                                        upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, deform = deform )

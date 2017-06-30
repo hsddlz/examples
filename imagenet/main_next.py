@@ -312,14 +312,14 @@ def main():
                                 weight_decay=args.weight_decay,nesterov=False if args.nes == 0 else True)
 
     if args.evaluate == 2 :
-        NUM_MULTICROP = 1
+        NUM_MULTICROP = 2
         for i in range(0,NUM_MULTICROP):
             test_output(val_loader, model, 'Result_{0}_{1}_{2}'.format(args.evaluate, i, args.evalmodnum))
         return
     
     elif args.evaluate == 3 :
-        NUM_MULTICROP = 36
-        for i in range(10,NUM_MULTICROP):
+        NUM_MULTICROP = 12
+        for i in range(6,NUM_MULTICROP):
             # Reset Val_Loader!!
             val_loader = torch.utils.data.DataLoader(
                 datasets.ImageFolder(valdir, transforms.Compose([
