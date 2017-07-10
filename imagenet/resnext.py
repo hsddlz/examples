@@ -111,7 +111,7 @@ class NeXtBottleneck(nn.Module):
     # expansion = 2
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1, upgroup=False, downgroup=False, \
-                 expansion = 2, secord = False, soadd = 0.01, dil = 1, deform = False):
+                 expansion = 2, secord = False, soadd = 0.01, dil = 1, deform = 0):
         super(NeXtBottleneck, self).__init__()
         self.secord = secord
         self.soadd = soadd
@@ -121,13 +121,28 @@ class NeXtBottleneck(nn.Module):
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
         
-        if self.deform:
+        # Deformable Plugin
+        if self.deform>0:
             self.offset2 = ConvOffset2D(planes)
+        else:
+            pass
+        
+        # Deformable Causes Filter Expansion
+        if self.deform == 0 :
             
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=int(32 * finer), stride=stride,
+            self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=int(32 * finer), stride=stride,
                                padding=dil, dilation=dil, bias=False)
-        self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, int(planes * expansion), kernel_size=1, groups=int(32 * finer) if downgroup else 1, bias=False)
+            self.bn2 = nn.BatchNorm2d(planes)
+            self.conv3 = nn.Conv2d(planes, int(planes * expansion), kernel_size=1, groups=int(32 * finer) if downgroup else 1, bias=False)
+        
+        else:
+            
+            self.conv2 = nn.Conv2d(planes, int(planes*self.deform), kernel_size=3, groups=int(32 * finer), stride=stride,
+                               padding=dil, dilation=dil, bias=False)
+            self.bn2 = nn.BatchNorm2d(int(planes*self.deform))
+            self.conv3 = nn.Conv2d(int(planes*self.deform), int(planes * expansion), kernel_size=1, groups=int(32 * finer) if downgroup else 1, bias=False)
+            
+        
         self.bn3 = nn.BatchNorm2d( int(planes * expansion) )
         self.relu = nn.ReLU(inplace=True)
         self.relu_ni = nn.ReLU(inplace=False)
@@ -141,8 +156,9 @@ class NeXtBottleneck(nn.Module):
         out = self.bn1(out)
         out = self.relu(out)
         
-        if self.deform:
+        if self.deform>0:
             out = self.offset2(out)
+            #print self.deform
         out = self.conv2(out)
         out = self.bn2(out)
         out = self.relu(out)
@@ -229,7 +245,7 @@ class ResNeXt(nn.Module):
     def __init__(self, block, layers, verticalfrac=False, fracparam=2, wider = 1, finer = 1,
                 lastout = 7 , num_classes=1000, upgroup = False, downgroup = False, \
                 cifar = False , multiway = 0, L1mode = False, changeloss = False, expansion = 2,\
-                 secord = False, soadd = 0.01, att = False, dilpat = '', deform = False):
+                 secord = False, soadd = 0.01, att = False, dilpat = '', deform = 0):
         self.lastout = lastout
         self.inplanes = 64
         self.num_classes = num_classes
@@ -261,18 +277,29 @@ class ResNeXt(nn.Module):
 
         #if self.verticalfrac==False:
         self.layer1 = self._make_layer(block, int(wider * 128), layers[0], finer = finer,\
-                                       upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, deform = False)
+                                       upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, deform = 0)
         self.layer2 = self._make_layer(block, int(wider * 256), layers[1], stride=2, finer = finer,\
-                                       upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, deform = False )
-        self.layer3 = self._make_layer(block, int(wider * 512), layers[2], stride=2, finer = finer,\
-                                       upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, deform = False )
+                                       upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, deform = 0 )
         
-        self.finaloutplane = int(wider*512*expansion)
+        if self.cifar:
+            
+            self.layer3 = self._make_layer(block, int(wider * 512), layers[2], stride=2, finer = finer,\
+                                       upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, deform = deform )  
+            
+            self.finaloutplane = int(wider*512*expansion)
+            
+        else:
+            
+            self.layer3 = self._make_layer(block, int(wider * 512), layers[2], stride=2, finer = finer,\
+                                       upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, deform = 0 )
         
-        # Possible We May Use wider * 1024 * (2 if deform else 1)
         
-        if not self.cifar:
-            self.layer4 = self._make_layer(block, int(wider * 1024), layers[3], stride=2, finer = finer, \
+        
+        
+            # Possible We May Use wider * 1024 * (2 if deform else 1)
+        
+            if not self.cifar:
+                self.layer4 = self._make_layer(block, int(wider * 1024), layers[3], stride=2, finer = finer, \
                                        upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, deform = deform )
             self.finaloutplane = int(wider*1024*expansion)
 
@@ -311,7 +338,7 @@ class ResNeXt(nn.Module):
                 m.bias.data.zero_()
 
     def _make_layer(self, block, planes, blocks, stride=1, finer=1, upgroup=False, downgroup=False, \
-                    dilpat = '', deform = False):
+                    dilpat = '', deform = 0):
         '''
         downsample = None
 
@@ -368,6 +395,8 @@ class ResNeXt(nn.Module):
             return copy.copy(layers)
 
     def forward(self, x):
+        #print self.deform
+        
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -871,7 +900,7 @@ def resnext50(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = False, d
 
 
 def resnext29_cifar10(pretrained=False, lastout=8, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False,\
-                              L1mode=False, secord = 0, soadd = 0.01, att = False, deform = False, **kwargs):
+                              L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0, **kwargs):
     """Constructs a ResNeXt-29 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet??
@@ -912,7 +941,7 @@ def resnext29_cifar10(pretrained=False, lastout=8, expansion = 4, x = 32, d = 4,
     return model
 
 def resnext29_cifar100(pretrained=False, lastout=8, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
-                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = False,  **kwargs):
+                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0,  **kwargs):
     
     """Constructs a ResNeXt-50 Expansion=8 model.
     Args:
@@ -993,7 +1022,7 @@ def resnext29_cifar100_bone(pretrained=False, expansion = 4, x = 32, d = 4, upgr
 
 
 def resnext38_imagenet1k(pretrained=False, lastout = 7, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
-                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = False,  **kwargs):
+                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0,  **kwargs):
     
     """Constructs a ResNeXt-50 Expansion=8 model.
     Args:
@@ -1011,7 +1040,7 @@ def resnext38_imagenet1k(pretrained=False, lastout = 7, expansion = 4, x = 32, d
     return model
 
 def resnext50_imagenet1k(pretrained=False, lastout = 7, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
-                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = False,  **kwargs):
+                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0,  **kwargs):
     
     """Constructs a ResNeXt-50 Expansion=8 model.
     Args:
@@ -1031,7 +1060,7 @@ def resnext50_imagenet1k(pretrained=False, lastout = 7, expansion = 4, x = 32, d
 
 
 def resnext38_inaturalist(pretrained=False, lastout = 7, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
-                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = False,  **kwargs):
+                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0,  **kwargs):
     
     """Constructs a ResNeXt-50 Expansion=8 model.
     Args:
@@ -1050,7 +1079,7 @@ def resnext38_inaturalist(pretrained=False, lastout = 7, expansion = 4, x = 32, 
 
 
 def resnext50_inaturalist(pretrained=False, lastout = 7, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
-                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = False,  **kwargs):
+                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0,  **kwargs):
     
     """Constructs a ResNeXt-50 Expansion=8 model.
     Args:

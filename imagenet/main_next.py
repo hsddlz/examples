@@ -134,7 +134,7 @@ parser.add_argument('--resume', default='', type=str, metavar='PATH',
 parser.add_argument('--dp', default='', type=str, metavar='Dilation Pattern (Vertical )',
                    help='Dilation Pattern: LIN,EXP,REVLIN,REVEXP,HOURGLASS,SHUTTLE')
 
-parser.add_argument('--df', default=0, type=int, metavar='Deformable Flag',
+parser.add_argument('--df', default=0.0, type=float, metavar='Deformable Flag',
                    help='Deformable Flag: Whether Deformable? May Cause Parameter Inflation')
 
 parser.add_argument('-e', '--evaluate', default=0, type=int, metavar='N',
@@ -169,13 +169,16 @@ def main():
                                          upgroup = True if args.ug else False, downgroup = True if args.dg else False,\
                                          secord = True if args.secord else False, soadd = args.soadd, \
                                          att = True if args.att else False, lastout = args.lastout, dilpat = args.dp, \
-                                         deform = True if args.df else False)
+                                         deform = args.df)
+        
     else:
         print("=> creating model '{}'".format(args.arch))
         model = resnext_models[args.arch](expansion = args.xp, x = args.x , d = args.d, \
                                          upgroup = True if args.ug else False, downgroup = True if args.dg else False,\
                                          secord = True if args.secord else False, soadd = args.soadd, \
-                                         att = True if args.att else False, lastout = args.lastout, dilpat = args.dp)
+                                         att = True if args.att else False, lastout = args.lastout, dilpat = args.dp,
+                                         deform = args.df)
+        #print("args.df: {}".format(args.df))
     
     
     # get the number of model parameters
@@ -318,8 +321,8 @@ def main():
         return
     
     elif args.evaluate == 3 :
-        NUM_MULTICROP = 12
-        for i in range(6,NUM_MULTICROP):
+        NUM_MULTICROP = 8
+        for i in range(0,NUM_MULTICROP):
             # Reset Val_Loader!!
             val_loader = torch.utils.data.DataLoader(
                 datasets.ImageFolder(valdir, transforms.Compose([
