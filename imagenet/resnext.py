@@ -245,7 +245,7 @@ class ResNeXt(nn.Module):
     def __init__(self, block, layers, verticalfrac=False, fracparam=2, wider = 1, finer = 1,
                 lastout = 7 , num_classes=1000, upgroup = False, downgroup = False, \
                 cifar = False , multiway = 0, L1mode = False, changeloss = False, expansion = 2,\
-                 secord = False, soadd = 0.01, att = False, dilpat = '', deform = 0):
+                 secord = False, soadd = 0.01, att = False, dilpat = '', deform = 0, fixx = 1):
         self.lastout = lastout
         self.inplanes = 64
         self.num_classes = num_classes
@@ -261,6 +261,7 @@ class ResNeXt(nn.Module):
         self.attention = att
         self.dilpat = dilpat
         self.deform = deform
+        self.fixx = fixx
 
         super(ResNeXt, self).__init__()
 
@@ -275,32 +276,37 @@ class ResNeXt(nn.Module):
 
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
+        
+        if self.fixx:
+            finerList = [finer, finer, finer, finer]
+        else:
+            finerList = [finer, finer*2.0, finer*4.0, finer*8.0]
+            
+        
+        
         #if self.verticalfrac==False:
-        self.layer1 = self._make_layer(block, int(wider * 128), layers[0], finer = finer,\
+        self.layer1 = self._make_layer(block, int(wider * 128), layers[0], finer = finerList[0],\
                                        upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, deform = 0)
-        self.layer2 = self._make_layer(block, int(wider * 256), layers[1], stride=2, finer = finer,\
+        self.layer2 = self._make_layer(block, int(wider * 256), layers[1], stride=2, finer = finerList[1],\
                                        upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, deform = 0 )
         
         if self.cifar:
             
-            self.layer3 = self._make_layer(block, int(wider * 512), layers[2], stride=2, finer = finer,\
+            self.layer3 = self._make_layer(block, int(wider * 512), layers[2], stride=2, finer = finerList[2],\
                                        upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, deform = deform )  
             
             self.finaloutplane = int(wider*512*expansion)
             
         else:
             
-            self.layer3 = self._make_layer(block, int(wider * 512), layers[2], stride=2, finer = finer,\
+            self.layer3 = self._make_layer(block, int(wider * 512), layers[2], stride=2, finer = finerList[2],\
                                        upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, deform = 0 )
-        
-        
-        
         
             # Possible We May Use wider * 1024 * (2 if deform else 1)
         
-            if not self.cifar:
-                self.layer4 = self._make_layer(block, int(wider * 1024), layers[3], stride=2, finer = finer, \
+            self.layer4 = self._make_layer(block, int(wider * 1024), layers[3], stride=2, finer = finerList[3], \
                                        upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, deform = deform )
+            
             self.finaloutplane = int(wider*1024*expansion)
 
         if not self.cifar:
@@ -861,29 +867,6 @@ def resnext50(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = False, d
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    '''
-    
-    if expansion == 4:
-        B = NeXtBottleneck4
-    elif expansion == 8:
-        B = NeXtBottleneck8
-    elif expansion == 16:
-        B = NeXtBottleneck16
-    elif expansion == 32:
-        B = NeXtBottleneck32
-    elif expansion ==2 :
-        B = NeXtBottleneck
-    elif expansion ==1 :
-        B = NeXtBottleneck1
-    elif expansion ==0.5 :
-        B = NeXtBottleneckO2
-    elif expansion ==0.25 :
-        B = NeXtBottleneckO4
-    elif expansion ==0.125 :
-        B = NeXtBottleneckO8
-    elif expansion ==0.0625 :
-        B = NeXtBottleneckO16
-    '''
     
     B = NeXtBottleneck
 
@@ -900,33 +883,11 @@ def resnext50(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = False, d
 
 
 def resnext29_cifar10(pretrained=False, lastout=8, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False,\
-                              L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0, **kwargs):
+                              L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0, fixx = 1,  **kwargs):
     """Constructs a ResNeXt-29 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet??
     """
-    '''
-    if expansion == 4:
-        B = NeXtBottleneck4
-    elif expansion == 8:
-        B = NeXtBottleneck8
-    elif expansion == 16:
-        B = NeXtBottleneck16
-    elif expansion == 32:
-        B = NeXtBottleneck32
-    elif expansion ==2 :
-        B = NeXtBottleneck
-    elif expansion ==1 :
-        B = NeXtBottleneck1
-    elif expansion ==0.5 :
-        B = NeXtBottleneckO2
-    elif expansion ==0.25 :
-        B = NeXtBottleneckO4
-    elif expansion ==0.125 :
-        B = NeXtBottleneckO8
-    elif expansion ==0.0625 :
-        B = NeXtBottleneckO16
-    '''
     
     B = NeXtBottleneck
 
@@ -936,40 +897,18 @@ def resnext29_cifar10(pretrained=False, lastout=8, expansion = 4, x = 32, d = 4,
     
     model = ResNeXt(B, [3, 3, 3], cifar=True, lastout=lastout, wider = wider , finer= finer, num_classes=10, \
                     upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion = expansion, \
-                    secord = secord, soadd = soadd, att= att, deform = deform,  **kwargs)
+                    secord = secord, soadd = soadd, att= att, deform = deform, fixx = fixx, **kwargs)
 
     return model
 
 def resnext29_cifar100(pretrained=False, lastout=8, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
-                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0,  **kwargs):
+                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0, fixx = 1, **kwargs):
     
     """Constructs a ResNeXt-50 Expansion=8 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
     
-    '''
-    if expansion == 4:
-        B = NeXtBottleneck4
-    elif expansion == 8:
-        B = NeXtBottleneck8
-    elif expansion == 16:
-        B = NeXtBottleneck16
-    elif expansion == 32:
-        B = NeXtBottleneck32
-    elif expansion ==2 :
-        B = NeXtBottleneck
-    elif expansion ==1 :
-        B = NeXtBottleneck1
-    elif expansion ==0.5 :
-        B = NeXtBottleneckO2
-    elif expansion ==0.25 :
-        B = NeXtBottleneckO4
-    elif expansion ==0.125 :
-        B = NeXtBottleneckO8
-    elif expansion ==0.0625 :
-        B = NeXtBottleneckO16
-    '''
     B = NeXtBottleneck
 
     finer = x / 32.0
@@ -977,52 +916,13 @@ def resnext29_cifar100(pretrained=False, lastout=8, expansion = 4, x = 32, d = 4
 
     model = ResNeXt(B, [3, 3, 3], cifar=True, lastout = lastout , wider = wider , finer= finer, num_classes=100, \
                     upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion=expansion, \
-                    secord = secord, soadd = soadd, att = att, deform = deform,  **kwargs)
-
-    return model
-
-def resnext29_cifar100_bone(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
-                           L1mode=False, **kwargs):
-    """Constructs a ResNeXt-50 Expansion=8 model.
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
-    """
-    '''
-    if expansion == 4:
-        B = NeXtBottleneck4
-    elif expansion == 8:
-        B = NeXtBottleneck8
-    elif expansion == 16:
-        B = NeXtBottleneck16
-    elif expansion == 32:
-        B = NeXtBottleneck32
-    elif expansion ==2 :
-        B = NeXtBottleneck
-    elif expansion ==1 :
-        B = NeXtBottleneck1
-    elif expansion ==0.5 :
-        B = NeXtBottleneckO2
-    elif expansion ==0.25 :
-        B = NeXtBottleneckO4
-    elif expansion ==0.125 :
-        B = NeXtBottleneckO8
-    elif expansion ==0.0625 :
-        B = NeXtBottleneckO16
-
-    '''
-    B = NeXtBottleneck
-    
-    finer = x / 32.0
-    wider = x * d / 128.0
-
-    model = ResNeXt_Bone(B, [3, 3, 3], cifar=True, lastout = lastout , wider = wider , finer= finer, num_classes=100, \
-                    upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion = expansion, **kwargs)
+                    secord = secord, soadd = soadd, att = att, deform = deform,  fixx=fixx,  **kwargs)
 
     return model
 
 
 def resnext38_imagenet1k(pretrained=False, lastout = 7, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
-                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0,  **kwargs):
+                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0, fixx = 1,  **kwargs):
     
     """Constructs a ResNeXt-50 Expansion=8 model.
     Args:
@@ -1035,12 +935,12 @@ def resnext38_imagenet1k(pretrained=False, lastout = 7, expansion = 4, x = 32, d
 
     model = ResNeXt(B, [3, 3, 3, 3], cifar=False, lastout = lastout , wider = wider , finer= finer, num_classes=1000, \
                     upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion=expansion, \
-                    secord = secord, soadd = soadd, att = att,  deform = deform, **kwargs)
+                    secord = secord, soadd = soadd, att = att,  deform = deform, fixx = fixx,  **kwargs)
 
     return model
 
 def resnext50_imagenet1k(pretrained=False, lastout = 7, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
-                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0,  **kwargs):
+                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0, fixx = 1,  **kwargs):
     
     """Constructs a ResNeXt-50 Expansion=8 model.
     Args:
@@ -1053,14 +953,14 @@ def resnext50_imagenet1k(pretrained=False, lastout = 7, expansion = 4, x = 32, d
 
     model = ResNeXt(B, [3, 4, 6, 3], cifar=False, lastout = lastout , wider = wider , finer= finer, num_classes=1000, \
                     upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion=expansion, \
-                    secord = secord, soadd = soadd, att = att, deform = deform , **kwargs)
+                    secord = secord, soadd = soadd, att = att, deform = deform , fixx = fixx , **kwargs)
 
     return model
 
 
 
 def resnext38_inaturalist(pretrained=False, lastout = 7, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
-                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0,  **kwargs):
+                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0, fixx = 1,  **kwargs):
     
     """Constructs a ResNeXt-50 Expansion=8 model.
     Args:
@@ -1073,13 +973,13 @@ def resnext38_inaturalist(pretrained=False, lastout = 7, expansion = 4, x = 32, 
 
     model = ResNeXt(B, [3, 3, 3, 3], cifar=False, lastout = lastout , wider = wider , finer= finer, num_classes=5089, \
                     upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion=expansion, \
-                    secord = secord, soadd = soadd, att = att, deform = deform, **kwargs)
+                    secord = secord, soadd = soadd, att = att, deform = deform, fixx = fixx,  **kwargs)
 
     return model
 
 
 def resnext50_inaturalist(pretrained=False, lastout = 7, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
-                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0,  **kwargs):
+                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0, fixx = 1 , **kwargs):
     
     """Constructs a ResNeXt-50 Expansion=8 model.
     Args:
@@ -1092,9 +992,14 @@ def resnext50_inaturalist(pretrained=False, lastout = 7, expansion = 4, x = 32, 
 
     model = ResNeXt(B, [3, 4, 6, 3], cifar=False, lastout = lastout , wider = wider , finer= finer, num_classes=5089, \
                     upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion=expansion, \
-                    secord = secord, soadd = soadd, att = att, deform = deform , **kwargs)
+                    secord = secord, soadd = soadd, att = att, deform = deform , fixx = fixx,  **kwargs)
 
     return model
+
+
+
+
+
 
 
 
@@ -1158,14 +1063,6 @@ def resnext50x2(pretrained=False, **kwargs):
 
     return model
 
-def resnext50x2f(pretrained=False, **kwargs):
-    """Constructs a ResNeXt-50 model.
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
-    """
-    model = ResNeXt(NeXtBottleneck, [3, 4, 6, 3], wider=2, finer=2,  **kwargs)
-
-    return model
 
 
 def resnet101(pretrained=False, **kwargs):
@@ -1180,7 +1077,6 @@ def resnet101(pretrained=False, **kwargs):
 
 
 
-
 def resnext101(pretrained=False, **kwargs):
     """Constructs a ResNeXt-101 model.
     Args:
@@ -1190,15 +1086,6 @@ def resnext101(pretrained=False, **kwargs):
 
     return model
 
-
-def resnext101v(pretrained=False, **kwargs):
-    """Constructs a ResNeXt-101 model.
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
-    """
-    model = ResNeXt(NeXtBottleneck, [3, 4, 23, 3], verticalfrac=True,  **kwargs)
-
-    return model
 
 
 def resnet152(pretrained=False, **kwargs):

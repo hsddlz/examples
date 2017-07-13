@@ -29,28 +29,11 @@ model_names = sorted(name for name in models.__dict__
 resnext_models = {'resnext50':resnext.resnext50,
                   'resnext29_cifar10':resnext.resnext29_cifar10,
                   'resnext29_cifar100':resnext.resnext29_cifar100,
-                  'resnext29_cifar100_bone':resnext.resnext29_cifar100_bone,
+                  #'resnext29_cifar100_bone':resnext.resnext29_cifar100_bone,
                   'resnext38_imagenet1k':resnext.resnext38_imagenet1k,
                   'resnext38_inaturalist':resnext.resnext38_inaturalist,
                   'resnext50_imagenet1k':resnext.resnext50_imagenet1k,
-                  'resnext50_inaturalist':resnext.resnext50_inaturalist,
-                  'resnext50my':resnext.resnext50my,
-                  'resnext50L1':resnext.resnext50L1,
-                  'resnext50myL1':resnext.resnext50myL1,
-                  'resnext38':resnext.resnext38,
-                  'resnext26':resnext.resnext26,
-                  'resnext50x2':resnext.resnext50x2,
-                  'resnext50v':resnext.resnext50v,
-                  'resnext50hgs':resnext.resnext50hgs,
-                  'resnext101':resnext.resnext101,
-                  'resnext101v':resnext.resnext101v,
-                  'resnext152':resnext.resnext152,
-                  'resnet50':resnext.resnet50,
-                  'faresnext50':meta_model.FractAllNeXt.faresnext50,
-                  'faresnext50v2':meta_model.FractAllNeXt.faresnext50v2,
-                  'faresnext50v3':meta_model.FractAllNeXt.faresnext50v3,
-                  'faresnext101v2':meta_model.FractAllNeXt.faresnext101v2,
-                  'faresnext101v3':meta_model.FractAllNeXt.faresnext101v3}
+                  'resnext50_inaturalist':resnext.resnext50_inaturalist}
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
@@ -101,6 +84,12 @@ parser.add_argument('--lastout' , default= 7 , type=int,
 parser.add_argument('--d', '--channel-width', default=4, type=int,
                     metavar='N', help='channel width')
 
+parser.add_argument('--fixx', '--fix-channel-num', default=1, type=int,
+                   metavar='N', help='Fix Num of Channels, Or Else Fix Channel Width')
+
+parser.add_argument('--labelsm' , default=0, type=int,
+                   metavar='N', help='Label Smoothing')
+
 parser.add_argument('--ug', '--up-group', default=0, type=int,
                     metavar='N', help='up-group')
 
@@ -122,8 +111,8 @@ parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
 
-parser.add_argument('--my', '--multi-way', default=0, type=int,
-                    metavar='MultiWay Softmax', help='MultiWay Softmax is kind of Ensemble')
+#parser.add_argument('--my', '--multi-way', default=0, type=int,
+#                    metavar='MultiWay Softmax', help='MultiWay Softmax is kind of Ensemble')
 
 parser.add_argument('--print-freq', '-p', default=20, type=int,
                     metavar='N', help='print frequency (default: 20)')
@@ -169,7 +158,7 @@ def main():
                                          upgroup = True if args.ug else False, downgroup = True if args.dg else False,\
                                          secord = True if args.secord else False, soadd = args.soadd, \
                                          att = True if args.att else False, lastout = args.lastout, dilpat = args.dp, \
-                                         deform = args.df)
+                                         deform = args.df, fixx = args.fixx )
         
     else:
         print("=> creating model '{}'".format(args.arch))
@@ -177,7 +166,7 @@ def main():
                                          upgroup = True if args.ug else False, downgroup = True if args.dg else False,\
                                          secord = True if args.secord else False, soadd = args.soadd, \
                                          att = True if args.att else False, lastout = args.lastout, dilpat = args.dp,
-                                         deform = args.df)
+                                         deform = args.df, fixx = args.fixx )
         #print("args.df: {}".format(args.df))
     
     
@@ -305,8 +294,6 @@ def main():
     #criterion = nn.CrossEntropyLoss().cuda()
     if 'L1' in args.arch or args.L1 == 1:
         criterion = nn.L1Loss(size_average=True).cuda()
-    elif 'my' in args.arch:
-        criterion = nn.NLLLoss().cuda()
     else:
         criterion = nn.CrossEntropyLoss().cuda()
 
@@ -366,6 +353,18 @@ def main():
     print 'Global best accuracy: ', best_prec1
 
 
+    
+def current_labelsm(epoch, smlow = 0.01, smhi=0.99 , lpstart = 1.6, lpend = 4.0):
+    if epoch < args.lp * lpstart:
+        return smhi
+    elif epoch >=args.lp * lpend:
+        return smlow
+    else:
+        #return 0.99 * np.exp( np.log( smlow / 0.99 ) * (epoch - args.lp* lpstart )/args.lp/(lpend-lpstart))
+        
+        return smlow  + (smhi-smlow) * (lpend*args.lp - epoch )/args.lp/(lpend-lpstart)
+
+
 def train(train_loader, model, criterion, optimizer, epoch):
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -382,14 +381,25 @@ def train(train_loader, model, criterion, optimizer, epoch):
         data_time.update(time.time() - end)
         #print type(target.float())
         if 'L1' in args.arch or args.L1==1:
-            targetTensor = np.zeros((args.batch_size, args.nclass))
-            for j in range(args.batch_size):
+            targetTensor = np.zeros((input.size()[0], args.nclass))
+            for j in range(input.size()[0]):
                 targetTensor[j, target[j]] = 1.0
             #targetTensor = targetTensor[:input.size[0],:input.size[1]]
             targetTensor = torch.FloatTensor(targetTensor)
             targetTensor = targetTensor.cuda(async=True)
             target = target.cuda(async=True)
             target_var = torch.autograd.Variable(targetTensor)
+            
+        elif args.labelsm:
+            targetTensor = np.zeros((input.size()[0], args.nclass))
+            for j in range(input.size()[0]):
+                targetTensor[j, target[j]] = 1.0
+            targetTensor = (targetTensor*current_labelsm(epoch)+(1-current_labelsm(epoch))/args.nclass)
+            targetTensor = torch.FloatTensor(targetTensor)
+            targetTensor = targetTensor.cuda(async=True)
+            target = target.cuda(async=True)
+            target_var = torch.autograd.Variable(targetTensor)
+            
         else:    
             target = target.cuda(async=True)
             target_var = torch.autograd.Variable(target)
@@ -399,7 +409,18 @@ def train(train_loader, model, criterion, optimizer, epoch):
 
         # compute output
         output = model(input_var)
-        loss = criterion(output, target_var)
+        if args.labelsm:
+            #print input.size(), output.size(), target_var.size()
+            output = nn.LogSoftmax()(output)
+            #print output.data[0]
+            loss = torch.mean(torch.sum(torch.mul(-output,target_var) , 1))
+        elif args.L1:
+            output = nn.Softmax()(output)
+            loss = nn.SmoothL1Loss()(output*args.nclass,target_var*args.nclass)
+        else:
+            loss = criterion(output, target_var)
+            
+            
 
         # measure accuracy and record loss
         prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
@@ -440,9 +461,9 @@ def validate(val_loader, model, criterion):
     for i, (input, target) in enumerate(val_loader):
         
         if 'L1' in args.arch or args.L1 == 1:
-            tmp = np.zeros((args.batch_size, args.nclass))
-            for i in range(args.batch_size):
-                tmp[i, target[i]] = 1.0
+            tmp = np.zeros((input.size()[0], args.nclass))
+            for j in range(input.size()[0]):
+                tmp[j, target[j]] = 1.0
                 
             # tmp and input ???
             target = torch.FloatTensor(tmp)
@@ -495,10 +516,10 @@ def test_output(val_loader, model, output_name):
         #if i>5:
         #    break
         if 'L1' in args.arch or args.L1 == 1:
-            tmp = np.zeros((args.batch_size, args.nclass))
-            for i in range(args.batch_size):
-                tmp[i, target[i]] = 1.0
-                
+            tmp = np.zeros((input.size()[0], args.nclass))
+            for j in range(input.size()[0]):
+                tmp[j, target[j]] = 1.0
+            
             # tmp and input ???
             target = torch.FloatTensor(tmp)
             target = target.cuda(async=True)
@@ -546,7 +567,7 @@ def adjust_learning_rate(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 10 every 30/30/30/30 epochs"""
     """The following pattern is just an example. Please modify yourself."""
     if args.lp > 0:
-        lr = args.lr * (0.1 ** (epoch >= args.lp)) * (0.1 ** (epoch >= (args.lp*1.6 ))) * (0.1 ** (epoch >= (args.lp*5.0 ))) * \
+        lr = args.lr * (0.1 ** (epoch >= args.lp)) * (0.1 ** (epoch >= (args.lp*1.6 ))) * (0.1 ** (epoch >= (args.lp*10.0 ))) * \
                     (0.1 ** (epoch >= (args.lp*5.0 ))) * (0.1 ** (epoch >= (args.lp*5)))
     else:
         lr = args.lr if ( epoch < 400 ) else args.lr*0.1
