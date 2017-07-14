@@ -117,10 +117,6 @@ class NeXtBottleneck(nn.Module):
         self.soadd = soadd
         self.expansion = expansion
         self.deform = deform
-        
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
-        self.bn1 = nn.BatchNorm2d(planes)
-        
         # Deformable Plugin
         if self.deform>0:
             self.offset2 = ConvOffset2D(planes)
@@ -129,21 +125,30 @@ class NeXtBottleneck(nn.Module):
         
         # Deformable Causes Filter Expansion
         if self.deform == 0 :
-            
-            self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, groups=int(32 * finer), stride=stride,
-                               padding=dil, dilation=dil, bias=False)
-            self.bn2 = nn.BatchNorm2d(planes)
-            self.conv3 = nn.Conv2d(planes, int(planes * expansion), kernel_size=1, groups=int(32 * finer) if downgroup else 1, bias=False)
-        
+            deformable_planes = planes
         else:
-            
-            self.conv2 = nn.Conv2d(planes, int(planes*self.deform), kernel_size=3, groups=int(32 * finer), stride=stride,
+            deformable_planes = int(planes*self.deform)
+        
+        # Trunk Branch
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.conv2 = nn.Conv2d(planes, deformable_planes, kernel_size=3, groups=int(32 * finer), stride=stride,
                                padding=dil, dilation=dil, bias=False)
-            self.bn2 = nn.BatchNorm2d(int(planes*self.deform))
-            self.conv3 = nn.Conv2d(int(planes*self.deform), int(planes * expansion), kernel_size=1, groups=int(32 * finer) if downgroup else 1, bias=False)
-            
+        self.bn2 = nn.BatchNorm2d(deformable_planes)
+        self.conv3 = nn.Conv2d(deformable_planes, int(planes * expansion), kernel_size=1, groups=int(32 * finer) if downgroup else 1, bias=False)
         
         self.bn3 = nn.BatchNorm2d( int(planes * expansion) )
+        
+        # Side(Attention Branch)
+        if self.secord in [2,3]:
+            self.conv1_secord2 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
+            self.bn1_secord2 = nn.BatchNorm2d(planes)
+            self.conv2_secord2 = nn.Conv2d(planes, deformable_planes, kernel_size=3, groups=int(32 * finer), stride=stride,
+                               padding=dil, dilation=dil, bias=False)
+            self.bn2_secord2 = nn.BatchNorm2d(deformable_planes)
+            self.conv3_secord2 = nn.Conv2d(deformable_planes, int(planes * expansion), kernel_size=1, groups=int(32 * finer) if downgroup else 1, bias=False)
+            self.bn3_secord2 = nn.BatchNorm2d( int(planes * expansion) )
+
         self.relu = nn.ReLU(inplace=True)
         self.relu_ni = nn.ReLU(inplace=False)
         self.downsample = downsample
@@ -171,8 +176,30 @@ class NeXtBottleneck(nn.Module):
 
         if not self.secord:
             out = out + residual
-        else:
+        elif self.secord == 1:
             out = out + residual +  torch.sqrt ( torch.add( torch.mul( self.relu_ni(out),self.relu_ni(residual) ), self.soadd ))
+        elif self.secord == 2:
+            out_side = self.conv1_secord2(x)
+            out_side = self.bn1_secord2(out_side)
+            out_side = self.relu(out_side)
+            if self.deform>0:
+                out_side = self.offset2(out_side)
+            out_side = self.conv2_secord2(out_side)
+            out_side = self.bn2_secord2(out_side)
+            out_side = self.relu(out_side)
+            out_side = self.conv3_secord2(outside)
+            out_side = self.bn3_secord3(out_side)
+            out = torch.mul(out, out_side)
+            out = out + residual
+        elif self.secord == 3:
+            out = self.relu(self.bn1(self.conv1(x)))
+            if self.deform>0:
+                out = self.offset2(out)
+            out_trunk = self.relu(self.bn2(self.conv2(out)))
+            out_mask = self.relu(self.bn2_secord2(self.conv2_secord2(out)))
+            out_trunk = torch.mul(out_trunk, out_mask)
+            out = self.bn3(self.conv3(out_trunk))
+            
         out = self.relu(out)
 
         return out
