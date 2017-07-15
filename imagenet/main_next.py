@@ -434,9 +434,23 @@ def train(train_loader, model, criterion, optimizer, epoch):
             loss = nn.SmoothL1Loss()(output*args.nclass,target_var*args.nclass)
         elif args.MarginP > 0:
             loss = nn.MultiMarginLoss(p=args.MarginP, margin=args.MarginV)(output, target_var)
-        elif args.labelboost > 1e-6:
-            # PASS
+        elif abs(args.labelboost) > 1e-6:
+            # Boosted CNN Implementation
             outq = nn.LogSoftmax()(output)
+            outp = nn.Softmax()(output)
+            #print "outp",(outp - outp[target]).data[0]
+            #w = torch.exp(( - output + outp[target]) * (-0.5))
+            #print "w",w.data[0]
+            #print target_var.size(), (1 - torch.sum(w,1)).expand(input.size()[0], args.nclass).size()
+            # w1 = w + torch.mul(target_var , ( - torch.sum(w,1) ).expand(input.size()[0], args.nclass)  )
+            #print w1.data[0]
+            #print torch.sum( torch.mul( -outq , w ) , 1 ).size()
+            loss = torch.mean( torch.sum( torch.mul( -outq , (target_var-outp*args.labelboost)/(1.0-args.labelboost) ) , 1 ))
+            #loss = torch.mean( torch.sum( w , 1 ) )
+            
+            
+            
+            """
             outp = nn.Softmax()(output)
             #print outq.size(),outp.size(),target_var.size()
             loss = torch.mean(\
@@ -444,6 +458,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
                                 torch.mul(-outq,  target_var * (1.0 + args.labelboost) - outp * (args.labelboost))
                                         ,1)\
                              )
+                             """
         else:
             loss = criterion(output, target_var)
             
@@ -486,7 +501,7 @@ def validate(val_loader, model, criterion):
     end = time.time()
     for i, (input, target) in enumerate(val_loader):
         
-        if 'L1' in args.arch or args.L1 == 1:
+        if 'L1' in args.arch or args.L1 == 1 or args.labelboost>1e-6:
             targetTensor = np.zeros((input.size()[0], args.nclass))
             for j in range(input.size()[0]):
                 targetTensor[j, target[j]] = 1.0
@@ -509,6 +524,31 @@ def validate(val_loader, model, criterion):
             loss = nn.SmoothL1Loss()(output*args.nclass,target_var*args.nclass)
         elif args.MarginP > 0:
             loss = nn.MultiMarginLoss(p=args.MarginP, margin=args.MarginV)(output, target_var)
+        
+        elif abs(args.labelboost) > 1e-6:
+            outq = nn.LogSoftmax()(output)
+            outp = nn.Softmax()(output)
+            #print "outp",(outp - outp[target]).data[0]
+            #w = torch.exp(( - output + outp[target]) * (-0.5))
+            #print "w",w.data[0]
+            #print target_var.size(), (1 - torch.sum(w,1)).expand(input.size()[0], args.nclass).size()
+            # w1 = w + torch.mul(target_var , ( - torch.sum(w,1) ).expand(input.size()[0], args.nclass)  )
+            #print w1.data[0]
+            #print torch.sum( torch.mul( -outq , w ) , 1 ).size()
+            loss = torch.mean( torch.sum( torch.mul( -outq , (target_var-outp*args.labelboost)/(1.0-args.labelboost) ) , 1 ))
+            #loss = torch.mean( torch.sum( w , 1 ) )
+            
+            
+            
+            """
+            outp = nn.Softmax()(output)
+            #print outq.size(),outp.size(),target_var.size()
+            loss = torch.mean(\
+                              torch.sum(\
+                                torch.mul(-outq,  target_var * (1.0 + args.labelboost) - outp * (args.labelboost))
+                                        ,1)\
+                             )
+                             """
         else:
             loss = criterion(output, target_var)
 
@@ -601,7 +641,7 @@ def adjust_learning_rate(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 10 every 30/30/30/30 epochs"""
     """The following pattern is just an example. Please modify yourself."""
     if args.lp > 0:
-        lr = args.lr * (0.1 ** (epoch >= args.lp)) * (0.1 ** (epoch >= (args.lp*1.6 ))) * (0.1 ** (epoch >= (args.lp*2.2 ))) * \
+        lr = args.lr * (0.1 ** (epoch >= args.lp)) * (0.1 ** (epoch >= (args.lp*1.6 ))) * (0.1 ** (epoch >= (args.lp*2.8 ))) * \
                     (0.1 ** (epoch >= (args.lp*10.0 ))) * (0.1 ** (epoch >= (args.lp*10)))
     else:
         lr = args.lr if ( epoch < 400 ) else args.lr*0.1
