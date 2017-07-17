@@ -33,7 +33,8 @@ resnext_models = {'resnext50':resnext.resnext50,
                   'resnext38_imagenet1k':resnext.resnext38_imagenet1k,
                   'resnext38_inaturalist':resnext.resnext38_inaturalist,
                   'resnext50_imagenet1k':resnext.resnext50_imagenet1k,
-                  'resnext50_inaturalist':resnext.resnext50_inaturalist}
+                  'resnext50_inaturalist':resnext.resnext50_inaturalist,
+                  'resnext50_cub200':resnext.resnext50_cub200}
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
@@ -640,13 +641,21 @@ class AverageMeter(object):
 def adjust_learning_rate(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 10 every 30/30/30/30 epochs"""
     """The following pattern is just an example. Please modify yourself."""
-    if args.lp > 0:
-        lr = args.lr * (0.1 ** (epoch >= args.lp)) * (0.1 ** (epoch >= (args.lp*1.6 ))) * (0.1 ** (epoch >= (args.lp*2.8 ))) * \
-                    (0.1 ** (epoch >= (args.lp*10.0 ))) * (0.1 ** (epoch >= (args.lp*10)))
+    
+    if 'cifar' in args.arch:
+        if args.lp > 0:
+            lr = args.lr * (0.1 ** (epoch >= args.lp)) * (0.1 ** (epoch >= (args.lp*1.6 ))) * (0.1 ** (epoch >= (args.lp*2.8)))
+        else:
+            lr = args.lr if (epoch < 400) else (args.lr * 0.1)
     else:
-        lr = args.lr if ( epoch < 400 ) else args.lr*0.1
-        if 'L1' in args.arch or args.L1 == 1:
-            lr = lr
+    
+        if args.lp > 0:
+            lr = args.lr * (0.1 ** (epoch >= args.lp)) * (0.1 ** (epoch >= (args.lp*1.6 ))) * (0.1 ** (epoch >= (args.lp*2.8 ))) * \
+                    (0.1 ** (epoch >= (args.lp*10.0 ))) * (0.1 ** (epoch >= (args.lp * 20.0)))
+        else:
+            lr = args.lr if ( epoch < 400 ) else args.lr*0.1
+            if 'L1' in args.arch or args.L1 == 1:
+                lr = lr
             #lr = lr * args.batch_size
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr

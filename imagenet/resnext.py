@@ -1024,6 +1024,25 @@ def resnext50_inaturalist(pretrained=False, lastout = 7, expansion = 4, x = 32, 
     return model
 
 
+def resnext50_cub200(pretrained=False, lastout = 7, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
+                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0, fixx = 1 , **kwargs):
+    
+    """Constructs a ResNeXt-50 Expansion=8 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    B = NeXtBottleneck
+
+    finer = x / 32.0
+    wider = x * d / 128.0
+
+    model = ResNeXt(B, [3, 4, 6, 3], cifar=False, lastout = lastout , wider = wider , finer= finer, num_classes=200, \
+                    upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion=expansion, \
+                    secord = secord, soadd = soadd, att = att, deform = deform , fixx = fixx,  **kwargs)
+
+    return model
+
+
 
 
 
