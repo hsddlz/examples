@@ -30,9 +30,11 @@ resnext_models = {'resnext50':resnext.resnext50,
                   'resnext29_cifar10':resnext.resnext29_cifar10,
                   'resnext29_cifar100':resnext.resnext29_cifar100,
                   #'resnext29_cifar100_bone':resnext.resnext29_cifar100_bone,
+                  'resnext_imagenet1k':resnext.resnext_imagenet1k,
                   'resnext38_imagenet1k':resnext.resnext38_imagenet1k,
-                  'resnext38_inaturalist':resnext.resnext38_inaturalist,
                   'resnext50_imagenet1k':resnext.resnext50_imagenet1k,
+                  'resnext_inaturalist':resnext.resnext_inaturalist,
+                  'resnext38_inaturalist':resnext.resnext38_inaturalist,
                   'resnext50_inaturalist':resnext.resnext50_inaturalist,
                   'resnext50_cub200':resnext.resnext50_cub200}
 
@@ -60,6 +62,9 @@ parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
 parser.add_argument('-b', '--batch-size', default=256, type=int,
                     metavar='N', help='mini-batch size (default: 256)')
+
+parser.add_argument('--numlayers', default=50, type=int,
+                    metavar='N', help='numlayers')
 
 parser.add_argument('--xp', '--expansion-coef', default=2, type=float,
                     metavar='N', help='expansion-coef')
@@ -171,19 +176,21 @@ def main():
     
     if args.pretrained:
         print("=> using pre-trained model '{}'".format(args.arch))
-        model = resnext_models[args.arch](pretrained=True, expansion = args.xp, x = args.x, d = args.d, \
+        model = resnext_models[args.arch](pretrained=True, numlayers = args.numlayers,\
+                                          expansion = args.xp, x = args.x, d = args.d, \
                                          upgroup = True if args.ug else False, downgroup = True if args.dg else False,\
                                          secord = True if args.secord else False, soadd = args.soadd, \
                                          att = True if args.att else False, lastout = args.lastout, dilpat = args.dp, \
-                                         deform = args.df, fixx = args.fixx )
+                                         deform = args.df, fixx = args.fixx  )
         
     else:
         print("=> creating model '{}'".format(args.arch))
-        model = resnext_models[args.arch](expansion = args.xp, x = args.x , d = args.d, \
+        model = resnext_models[args.arch](numlayers = args.numlayers, \
+                                          expansion = args.xp, x = args.x , d = args.d, \
                                          upgroup = True if args.ug else False, downgroup = True if args.dg else False,\
                                          secord = True if args.secord else False, soadd = args.soadd, \
                                          att = True if args.att else False, lastout = args.lastout, dilpat = args.dp,
-                                         deform = args.df, fixx = args.fixx )
+                                         deform = args.df, fixx = args.fixx , )
         #print("args.df: {}".format(args.df))
     
     
@@ -650,7 +657,7 @@ def adjust_learning_rate(optimizer, epoch):
     else:
     
         if args.lp > 0:
-            lr = args.lr * (0.1 ** (epoch >= args.lp)) * (0.1 ** (epoch >= (args.lp*1.6 ))) * (0.1 ** (epoch >= (args.lp*2.8 ))) * \
+            lr = args.lr * (0.1 ** (epoch >= args.lp)) * (0.1 ** (epoch >= (args.lp*1.6 ))) * (0.1 ** (epoch >= (args.lp*2.2 ))) * \
                     (0.1 ** (epoch >= (args.lp*10.0 ))) * (0.1 ** (epoch >= (args.lp * 20.0)))
         else:
             lr = args.lr if ( epoch < 400 ) else args.lr*0.1
