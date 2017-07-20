@@ -1056,6 +1056,37 @@ def resnext29_cifar10(pretrained=False, lastout=8, expansion = 4, x = 32, d = 4,
 
     return model
 
+
+def resnext_cifar100(pretrained=False, numlayers=29, lastout=8, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
+                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0, fixx = 1, **kwargs):
+    
+    """Constructs a ResNeXt-50 Expansion=8 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    
+    B = NeXtBottleneck
+
+    finer = x / 32.0
+    wider = x * d / 128.0
+    
+    if numlayers == 29:
+        layers = [3,3,3]
+    elif numlayers = 38:
+        layers = [3,6,3]
+    elif numlayers = 50:
+        layers = [3,10,3]
+    else:
+        layers = [3,3,3]
+
+    model = ResNeXt(B, layers, cifar=True, lastout = lastout , wider = wider , finer= finer, num_classes=100, \
+                    upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion=expansion, \
+                    secord = secord, soadd = soadd, att = att, deform = deform,  fixx=fixx,  **kwargs)
+
+    return model
+
+
+
 def resnext29_cifar100(pretrained=False, lastout=8, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
                            L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0, fixx = 1, **kwargs):
     

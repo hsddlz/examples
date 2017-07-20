@@ -28,6 +28,7 @@ model_names = sorted(name for name in models.__dict__
 
 resnext_models = {'resnext50':resnext.resnext50,
                   'resnext29_cifar10':resnext.resnext29_cifar10,
+                  'resnext_cifar100':resnext.resnext_cifar100,
                   'resnext29_cifar100':resnext.resnext29_cifar100,
                   #'resnext29_cifar100_bone':resnext.resnext29_cifar100_bone,
                   'resnext_imagenet1k':resnext.resnext_imagenet1k,
