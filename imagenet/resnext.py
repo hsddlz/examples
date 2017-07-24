@@ -236,12 +236,12 @@ class IRNeXt(nn.Module):
                                padding=dil, dilation=dil, bias=False)
         self.bn12 = nn.BatchNorm2d(deformable_planes)
         # Branch 2
-        self.conv21 = nn.Conv2d(inplanes, planes/2, kernel_size=1, groups=int(32*finer) if upgroup else 1, bias=False)
+        self.conv21 = nn.Conv2d(inplanes, planes/2, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
         self.bn21 = nn.BatchNorm2d(planes/2)
         self.conv22 = nn.Conv2d(planes/2, planes/2, kernel_size=3, groups=int(32 * finer), stride=stride,
                                padding=dil, dilation=dil, bias=False)
         self.bn22 = nn.BatchNorm2d(planes/2)
-        self.conv23 = nn.Conv2d(planes/2, planes/2, kernel_size=3, groups=int(32 * finer), stride=stride,
+        self.conv23 = nn.Conv2d(planes/2, planes/2, kernel_size=3, groups=int(32 * finer), stride=1,
                                padding=dil, dilation=dil, bias=False)
         
         # Post Concat Branch
@@ -256,6 +256,7 @@ class IRNeXt(nn.Module):
         self.stride = stride
 
     def forward(self, x):
+        
         residual = x
         # Branch Left
         left = self.conv11(x)
@@ -263,11 +264,12 @@ class IRNeXt(nn.Module):
         left = self.relu(left)
         if self.deform>0:
             left = self.offset2(left)
+            
         left = self.conv12(left)
         # Branch Right
         right = self.conv21(x)
         right = self.bn21(right)
-        right = self.relu(left)
+        right = self.relu(right)
         right = self.conv22(right)
         right = self.bn22(right)
         right = self.relu(right)

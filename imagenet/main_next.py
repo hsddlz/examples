@@ -453,6 +453,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
 
         # compute output
         output = model(input_var)
+        
         if args.labelsm:
             #print input.size(), output.size(), target_var.size()
             output = nn.LogSoftmax()(output)
