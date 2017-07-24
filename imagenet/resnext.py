@@ -1072,9 +1072,9 @@ def resnext_cifar100(pretrained=False, numlayers=29, lastout=8, expansion = 4, x
     
     if numlayers == 29:
         layers = [3,3,3]
-    elif numlayers = 38:
+    elif numlayers == 38:
         layers = [3,6,3]
-    elif numlayers = 50:
+    elif numlayers == 50:
         layers = [3,10,3]
     else:
         layers = [3,3,3]

@@ -143,6 +143,11 @@ parser.add_argument('--print-freq', '-p', default=20, type=int,
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 
+parser.add_argument('--finetune', default=0, type=int, metavar='FLAG',
+                    help='is finetune')
+
+
+
 parser.add_argument('--dp', default='', type=str, metavar='Dilation Pattern (Vertical )',
                    help='Dilation Pattern: LIN,EXP,REVLIN,REVEXP,HOURGLASS,SHUTTLE')
 
@@ -191,7 +196,7 @@ def main():
                                          upgroup = True if args.ug else False, downgroup = True if args.dg else False,\
                                          secord = True if args.secord else False, soadd = args.soadd, \
                                          att = True if args.att else False, lastout = args.lastout, dilpat = args.dp,
-                                         deform = args.df, fixx = args.fixx , )
+                                         deform = args.df, fixx = args.fixx  )
         #print("args.df: {}".format(args.df))
     
     
@@ -212,9 +217,23 @@ def main():
             checkpoint = torch.load(args.resume)
             args.start_epoch = checkpoint['epoch']
             best_prec1 = checkpoint['best_prec1']
+            
+            #print type(checkpoint)
+            
             model.load_state_dict(checkpoint['state_dict'])
+            
+            if args.finetune:
+                args.start_epoch = 0
+                print "start_epoch is ",args.start_epoch
+                topfeature = int(args.x * args.d * 8 * args.xp)
+                model.fc = nn.Linear(topfeature, args.nclass)
+                
+                
             print("=> loaded checkpoint '{}' (epoch {})"
                   .format(args.resume, checkpoint['epoch']))
+            
+            # For Fine-tuning
+            
         else:
             print("=> no checkpoint found at '{}'".format(args.resume))
 
@@ -445,8 +464,8 @@ def train(train_loader, model, criterion, optimizer, epoch):
             loss = nn.MultiMarginLoss(p=args.MarginP, margin=args.MarginV)(output, target_var)
         elif abs(args.labelboost) > 1e-6:
             # Boosted CNN Implementation
-            outq = nn.LogSoftmax()(output)
-            outp = nn.Softmax()(output)
+            outq = nn.LogSoftmax()(output[:,:args.nclass])
+            outp = nn.Softmax()(output[:,:args.nclass])
             #print "outp",(outp - outp[target]).data[0]
             #w = torch.exp(( - output + outp[target]) * (-0.5))
             #print "w",w.data[0]
@@ -454,6 +473,8 @@ def train(train_loader, model, criterion, optimizer, epoch):
             # w1 = w + torch.mul(target_var , ( - torch.sum(w,1) ).expand(input.size()[0], args.nclass)  )
             #print w1.data[0]
             #print torch.sum( torch.mul( -outq , w ) , 1 ).size()
+            #print outq.size()
+            
             loss = torch.mean( torch.sum( torch.mul( -outq , (target_var-outp*args.labelboost)/(1.0-args.labelboost) ) , 1 ))
             #loss = torch.mean( torch.sum( w , 1 ) )
             
@@ -535,8 +556,8 @@ def validate(val_loader, model, criterion):
             loss = nn.MultiMarginLoss(p=args.MarginP, margin=args.MarginV)(output, target_var)
         
         elif abs(args.labelboost) > 1e-6:
-            outq = nn.LogSoftmax()(output)
-            outp = nn.Softmax()(output)
+            outq = nn.LogSoftmax()(output[:,:args.nclass])
+            outp = nn.Softmax()(output[:,:args.nclass])
             #print "outp",(outp - outp[target]).data[0]
             #w = torch.exp(( - output + outp[target]) * (-0.5))
             #print "w",w.data[0]
@@ -544,6 +565,7 @@ def validate(val_loader, model, criterion):
             # w1 = w + torch.mul(target_var , ( - torch.sum(w,1) ).expand(input.size()[0], args.nclass)  )
             #print w1.data[0]
             #print torch.sum( torch.mul( -outq , w ) , 1 ).size()
+            
             loss = torch.mean( torch.sum( torch.mul( -outq , (target_var-outp*args.labelboost)/(1.0-args.labelboost) ) , 1 ))
             #loss = torch.mean( torch.sum( w , 1 ) )
             
