@@ -203,6 +203,93 @@ class NeXtBottleneck(nn.Module):
         out = self.relu(out)
 
         return out
+    
+    
+    
+class IRNeXt(nn.Module):
+    # expansion = 4
+    def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1, upgroup=False, downgroup=False, \
+                 expansion = 4, secord = False, soadd = 0.01, dil = 1, deform = 0):
+        super(IRNeXt, self).__init__()
+        self.secord = secord
+        self.soadd = soadd
+        self.expansion = expansion
+        self.deform = deform
+        # Deformable Plugin
+        if self.deform>0:
+            self.offset2 = ConvOffset2D(planes)
+        else:
+            pass
+        
+        # Deformable Causes Filter Expansion
+        if self.deform == 0 :
+            deformable_planes = planes
+        else:
+            deformable_planes = int(planes*self.deform)
+        
+        
+        # IRNeXt Trunk Branch
+        # Branch 1
+        self.conv11 = nn.Conv2d(inplanes, planes, kernel_size=1, groups=int(32 * finer) if upgroup else 1, bias=False)
+        self.bn11 = nn.BatchNorm2d(planes)
+        self.conv12 = nn.Conv2d(planes, deformable_planes, kernel_size=3, groups=int(32 * finer), stride=stride,
+                               padding=dil, dilation=dil, bias=False)
+        self.bn12 = nn.BatchNorm2d(deformable_planes)
+        # Branch 2
+        self.conv21 = nn.Conv2d(inplanes, planes/2, kernel_size=1, groups=int(32*finer) if upgroup else 1, bias=False)
+        self.bn21 = nn.BatchNorm2d(planes/2)
+        self.conv22 = nn.Conv2d(planes/2, planes/2, kernel_size=3, groups=int(32 * finer), stride=stride,
+                               padding=dil, dilation=dil, bias=False)
+        self.bn22 = nn.BatchNorm2d(planes/2)
+        self.conv23 = nn.Conv2d(planes/2, planes/2, kernel_size=3, groups=int(32 * finer), stride=stride,
+                               padding=dil, dilation=dil, bias=False)
+        
+        # Post Concat Branch
+        self.bn30 = nn.BatchNorm2d( deformable_planes + planes/2 )
+        self.conv3 = nn.Conv2d(deformable_planes+planes/2 , int(planes * expansion), kernel_size=1, groups=int(32 * finer) if downgroup else 1, bias=False)
+        
+        self.bn31 = nn.BatchNorm2d( int(planes * expansion) )
+        
+        self.relu = nn.ReLU(inplace=True)
+        self.relu_ni = nn.ReLU(inplace=False)
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        residual = x
+        # Branch Left
+        left = self.conv11(x)
+        left = self.bn11(left)
+        left = self.relu(left)
+        if self.deform>0:
+            left = self.offset2(left)
+        left = self.conv12(left)
+        # Branch Right
+        right = self.conv21(x)
+        right = self.bn21(right)
+        right = self.relu(left)
+        right = self.conv22(right)
+        right = self.bn22(right)
+        right = self.relu(right)
+        right = self.conv23(right)
+        
+        out = torch.cat([left, right],1)
+        out = self.bn30(out)
+        out = self.relu(out)
+        out = self.conv3(out)
+        out = self.bn31(out)
+        
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        # PreActivation    
+        
+        out = out + residual
+        out = self.relu(out)
+        
+        return out
+    
+    
 
 class ResNet(nn.Module):
 
@@ -1096,6 +1183,26 @@ def resnext29_cifar100(pretrained=False, lastout=8, expansion = 4, x = 32, d = 4
     """
     
     B = NeXtBottleneck
+
+    finer = x / 32.0
+    wider = x * d / 128.0
+
+    model = ResNeXt(B, [3, 3, 3], cifar=True, lastout = lastout , wider = wider , finer= finer, num_classes=100, \
+                    upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion=expansion, \
+                    secord = secord, soadd = soadd, att = att, deform = deform,  fixx=fixx,  **kwargs)
+
+    return model
+
+
+def irnext29_cifar100(pretrained=False, lastout=8, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
+                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0, fixx = 1, **kwargs):
+    
+    """Constructs a ResNeXt-50 Expansion=8 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    
+    B = IRNeXt
 
     finer = x / 32.0
     wider = x * d / 128.0

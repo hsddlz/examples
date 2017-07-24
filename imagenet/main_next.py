@@ -30,6 +30,7 @@ resnext_models = {'resnext50':resnext.resnext50,
                   'resnext29_cifar10':resnext.resnext29_cifar10,
                   'resnext_cifar100':resnext.resnext_cifar100,
                   'resnext29_cifar100':resnext.resnext29_cifar100,
+                  'irnext29_cifar100':resnext.irnext29_cifar100,
                   #'resnext29_cifar100_bone':resnext.resnext29_cifar100_bone,
                   'resnext_imagenet1k':resnext.resnext_imagenet1k,
                   'resnext38_imagenet1k':resnext.resnext38_imagenet1k,
@@ -475,7 +476,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
             #print torch.sum( torch.mul( -outq , w ) , 1 ).size()
             #print outq.size()
             
-            loss = torch.mean( torch.sum( torch.mul( -outq , (target_var-outp*args.labelboost)/(1.0-args.labelboost) ) , 1 ))
+            loss = torch.mean( torch.sum( torch.mul( -outq , (target_var + outp*args.labelboost)/(1.0 + args.labelboost) ) , 1 ))
             #loss = torch.mean( torch.sum( w , 1 ) )
             
             
@@ -566,7 +567,7 @@ def validate(val_loader, model, criterion):
             #print w1.data[0]
             #print torch.sum( torch.mul( -outq , w ) , 1 ).size()
             
-            loss = torch.mean( torch.sum( torch.mul( -outq , (target_var-outp*args.labelboost)/(1.0-args.labelboost) ) , 1 ))
+            loss = torch.mean( torch.sum( torch.mul( -outq , (target_var + outp*args.labelboost)/(1.0 + args.labelboost) ) , 1 ))
             #loss = torch.mean( torch.sum( w , 1 ) )
             
             
