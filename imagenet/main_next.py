@@ -31,6 +31,7 @@ resnext_models = {'resnext50':resnext.resnext50,
                   'resnext_cifar100':resnext.resnext_cifar100,
                   'resnext29_cifar100':resnext.resnext29_cifar100,
                   'irnext29_cifar100':resnext.irnext29_cifar100,
+                  'irnext20_cifar100':resnext.irnext20_cifar100,
                   #'resnext29_cifar100_bone':resnext.resnext29_cifar100_bone,
                   'resnext_imagenet1k':resnext.resnext_imagenet1k,
                   'resnext38_imagenet1k':resnext.resnext38_imagenet1k,
@@ -410,9 +411,7 @@ def current_labelsm(epoch, smlow = 0.01, smhi=0.99 , lpstart = 1.6, lpend = 4.0)
         return smlow  + (smhi-smlow) * (lpend*args.lp - epoch )/args.lp/(lpend-lpstart)
 
 
-    
-def train(train_loader, model, criterion, optimizer, epoch ):
-        
+def train(train_loader, model, criterion, optimizer, epoch):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -470,7 +469,6 @@ def train(train_loader, model, criterion, optimizer, epoch ):
             # Boosted CNN Implementation
             outq = nn.LogSoftmax()(output[:,:args.nclass])
             outp = nn.Softmax()(output[:,:args.nclass])
-            
             #print "outp",(outp - outp[target]).data[0]
             #w = torch.exp(( - output + outp[target]) * (-0.5))
             #print "w",w.data[0]
@@ -480,30 +478,7 @@ def train(train_loader, model, criterion, optimizer, epoch ):
             #print torch.sum( torch.mul( -outq , w ) , 1 ).size()
             #print outq.size()
             
-            # Label Smoothing Or Boosting: Null
-            # loss = torch.mean( torch.sum( torch.mul( -outq , (target_var + outp*args.labelboost)/(1.0 + args.labelboost) ) , 1 ))
-            # Label Boosting v2:
-            correctness = torch.sum(torch.mul(outp, target_var),1)
-            uncorrectness = - correctness + 1.0
-            alpha = torch.sqrt( ( uncorrectness + 1.0/args.nclass) / (correctness + 1.0/args.nclass) )
-            invalpha = 1.0 / alpha
-            # ada = torch.log(correctness * invalpha + uncorrectness * alpha )
-            ada = torch.log(correctness * invalpha  + uncorrectness * alpha  )
-            ada = nn.Softmax()(ada.view(1,-1))
-            #print ada.max(),ada.max().data[0]
-            # ada = ada / ada.max().data[0]
-            loss = torch.sum(torch.mul(torch.sum(torch.mul(-outq, target_var),1),ada.view(-1,1)))
-            '''
-            _, pred = output.topk(1, 1, True, True)
-            pred = pred.t()
-            correct = pred.eq(target.view(1, -1).expand_as(pred))
-
-            res = []
-            correct_1 = correct[:1].view(-1).float().sum(0)
-            
-            print correct_1.size()
-            '''
-
+            loss = torch.mean( torch.sum( torch.mul( -outq , (target_var + outp*args.labelboost)/(1.0 + args.labelboost) ) , 1 ))
             #loss = torch.mean( torch.sum( w , 1 ) )
             
             
@@ -726,7 +701,6 @@ def accuracy(output, target, topk=(1,)):
 
     _, pred = output.topk(maxk, 1, True, True)
     pred = pred.t()
-    #print "target.view(1, -1).expand_as(pred) size: ", target.view(1, -1).expand_as(pred).size()
     correct = pred.eq(target.view(1, -1).expand_as(pred))
 
     res = []
