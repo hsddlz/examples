@@ -281,6 +281,8 @@ class IRNeXt(nn.Module):
         out = self.conv3(out)
         out = self.bn31(out)
         
+        out = self.relu(out) # Deformable Original Paper?
+        
         if self.downsample is not None:
             residual = self.downsample(x)
 
