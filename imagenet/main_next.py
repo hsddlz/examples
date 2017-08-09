@@ -343,10 +343,12 @@ def main():
     else:
         criterion = nn.CrossEntropyLoss().cuda()
 
+        
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay,nesterov=False if args.nes == 0 else True)
-
+    #optimizer = torch.optim.Adam(model.parameters(), args.lr)
+    
     if args.evaluate == 2 :
         NUM_MULTICROP = 2
         for i in range(0,NUM_MULTICROP):
@@ -470,6 +472,14 @@ def train(train_loader, model, criterion, optimizer, epoch):
             outq = nn.LogSoftmax()(output[:,:args.nclass])
             outp = nn.Softmax()(output[:,:args.nclass])
             #print "outp",(outp - outp[target]).data[0]
+            
+            # w = outp[target]#**(-1.0/args.nclass)
+            # w = outp[target]
+            #print outp.size(), target_var.size()
+            #print (outp * target_var).data[0]
+            w = (1.0/args.nclass +  torch.sum(outp * target_var ,1 )) ** (-1.0/args.labelboost)
+            w = w / torch.sum(w)
+            
             #w = torch.exp(( - output + outp[target]) * (-0.5))
             #print "w",w.data[0]
             #print target_var.size(), (1 - torch.sum(w,1)).expand(input.size()[0], args.nclass).size()
@@ -478,8 +488,10 @@ def train(train_loader, model, criterion, optimizer, epoch):
             #print torch.sum( torch.mul( -outq , w ) , 1 ).size()
             #print outq.size()
             
-            loss = torch.mean( torch.sum( torch.mul( -outq , (target_var + outp*args.labelboost)/(1.0 + args.labelboost) ) , 1 ))
+            #loss = torch.mean( torch.sum( torch.mul( -outq , (target_var + outp*args.labelboost)/(1.0 + args.labelboost) ) , 1 ))
             #loss = torch.mean( torch.sum( w , 1 ) )
+            
+            loss = torch.sum(torch.mul(w , torch.sum(torch.mul(-outq, target_var),1)))
             
             
             

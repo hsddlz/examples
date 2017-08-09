@@ -150,6 +150,7 @@ class NeXtBottleneck(nn.Module):
             self.bn3_secord2 = nn.BatchNorm2d( int(planes * expansion) )
 
         self.relu = nn.ReLU(inplace=True)
+        #self.A = nn.AlphaDropout(p=0.1)
         self.relu_ni = nn.ReLU(inplace=False)
         self.downsample = downsample
         self.stride = stride
@@ -160,15 +161,19 @@ class NeXtBottleneck(nn.Module):
         out = self.conv1(x)
         out = self.bn1(out)
         out = self.relu(out)
+        #out = self.A(self.relu(out))
         
         if self.deform>0:
             out = self.offset2(out)
             #print self.deform
         out = self.conv2(out)
+        
         out = self.bn2(out)
         out = self.relu(out)
-
+        #out = self.A(self.relu(out))
+        
         out = self.conv3(out)
+        
         out = self.bn3(out)
 
         if self.downsample is not None:
@@ -200,8 +205,16 @@ class NeXtBottleneck(nn.Module):
             out_trunk = torch.mul(out_trunk, out_mask)
             out = self.bn3(self.conv3(out_trunk))
             
-        out = self.relu(out)
-
+        # An ablation study said this relu could be commentted out
+        # http://torch.ch/blog/2016/02/04/resnets.html
+        
+        # Fix this when layer>100:
+        if 1:
+            out = self.relu(out)
+            #out = self.A(self.relu(out))
+        else:
+            pass
+        
         return out
     
     
@@ -443,6 +456,8 @@ class ResNeXt(nn.Module):
                                bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
+        #self.relu = nn.SELU(inplace=True)
+        #self.A = nn.AlphaDropout(p=0.1)
 
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
@@ -590,8 +605,11 @@ class ResNeXt(nn.Module):
         #print self.deform
         
         x = self.conv1(x)
+        
         x = self.bn1(x)
         x = self.relu(x)
+        #x = self.A(self.relu(x))
+        
         if not self.cifar:
             x = self.maxpool(x)
 
