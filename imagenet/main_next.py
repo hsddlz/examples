@@ -500,8 +500,8 @@ def train(train_loader, model, criterion, optimizer, epoch):
             outq = nn.LogSoftmax()(output[:,:args.nclass])
             outp = nn.Softmax()(output[:,:args.nclass])
             OneMinusPToGamma = (1.0 - torch.sum(outp * target_var ,1 ))**2
-            LogP = torch.sum(outp * target_var, 1)
-            loss = torch.mul(OneMinusPToGamma, LogP)
+            LogP = torch.sum(- outq * target_var, 1)
+            loss = torch.sum(torch.mul(OneMinusPToGamma, LogP))
             
             
             
