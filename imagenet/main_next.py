@@ -108,6 +108,9 @@ parser.add_argument('--labelboost' , default=0., type=float,
                    metavar='N', help='Label Boosting')
 
 
+parser.add_argument('--focal' , default=0, type=int,
+                   metavar='N', help='Use Focal Loss, By Kaiming He')
+
 parser.add_argument('--ug', '--up-group', default=0, type=int,
                     metavar='N', help='up-group')
 
@@ -428,7 +431,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
         # measure data loading time
         data_time.update(time.time() - end)
         #print type(target.float())
-        if 'L1' in args.arch or args.L1==1 or args.labelboost>1e-6:
+        if 'L1' in args.arch or args.L1==1 or args.labelboost>1e-6 or args.focal>0:
             targetTensor = np.zeros((input.size()[0], args.nclass))
             for j in range(input.size()[0]):
                 targetTensor[j, target[j]] = 1.0
@@ -446,7 +449,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
             targetTensor = torch.FloatTensor(targetTensor)
             targetTensor = targetTensor.cuda(async=True)
             target = target.cuda(async=True)
-            target_var = torch.autograd.Variable(targetTensor)
+            target_var = torch.autograd.Variable(targetTensor)            
         else:    
             target = target.cuda(async=True)
             target_var = torch.autograd.Variable(target)
@@ -492,6 +495,13 @@ def train(train_loader, model, criterion, optimizer, epoch):
             #loss = torch.mean( torch.sum( w , 1 ) )
             
             loss = torch.sum(torch.mul(w , torch.sum(torch.mul(-outq, target_var),1)))
+        elif args.focal > 0:
+            
+            outq = nn.LogSoftmax()(output[:,:args.nclass])
+            outp = nn.Softmax()(output[:,:args.nclass])
+            OneMinusPToGamma = (1.0 - torch.sum(outp * target_var ,1 ))**2
+            LogP = torch.sum(outp * target_var, 1)
+            loss = torch.mul(OneMinusPToGamma, LogP)
             
             
             

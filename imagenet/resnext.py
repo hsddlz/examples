@@ -461,6 +461,10 @@ class ResNeXt(nn.Module):
 
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
+        # To avoid mean-rgb, Uncomment the following lines
+        # self.bn12 = nn.BatchNorm2d(64)
+        
+        
         
         if self.fixx:
             finerList = [finer, finer, finer, finer]
@@ -610,8 +614,11 @@ class ResNeXt(nn.Module):
         x = self.relu(x)
         #x = self.A(self.relu(x))
         
+
         if not self.cifar:
             x = self.maxpool(x)
+            # To Avoid mean-rgb, use
+            # x = self.relu(self.bn12(x))
 
         ## Vertical Frac ##
         if self.verticalfrac == False:
