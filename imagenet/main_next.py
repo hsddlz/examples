@@ -101,6 +101,10 @@ parser.add_argument('--fixx', '--fix-channel-num', default=1, type=int,
                    metavar='N', help='Fix Num of Channels, Or Else Fix Channel Width')
 
 
+parser.add_argument('--sqex', '--squeeze-excitation', default=0, type=int,
+                   metavar='N', help='Switch to turn on Squeeze and Excitation')
+
+
 parser.add_argument('--labelsm' , default=0, type=int,
                    metavar='N', help='Label Smoothing')
 
@@ -192,7 +196,7 @@ def main():
                                          upgroup = True if args.ug else False, downgroup = True if args.dg else False,\
                                          secord = True if args.secord else False, soadd = args.soadd, \
                                          att = True if args.att else False, lastout = args.lastout, dilpat = args.dp, \
-                                         deform = args.df, fixx = args.fixx  )
+                                         deform = args.df, fixx = args.fixx, sqex = args.sqex  )
         
     else:
         print("=> creating model '{}'".format(args.arch))
@@ -201,7 +205,7 @@ def main():
                                          upgroup = True if args.ug else False, downgroup = True if args.dg else False,\
                                          secord = True if args.secord else False, soadd = args.soadd, \
                                          att = True if args.att else False, lastout = args.lastout, dilpat = args.dp,
-                                         deform = args.df, fixx = args.fixx  )
+                                         deform = args.df, fixx = args.fixx , sqex = args.sqex )
         #print("args.df: {}".format(args.df))
     
     
