@@ -111,7 +111,7 @@ class NeXtBottleneck(nn.Module):
     # expansion = 2
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, finer = 1, upgroup=False, downgroup=False, \
-                 expansion = 2, secord = False, soadd = 0.01, dil = 1, deform = 0, sqex = 0, mapsize = None):
+                 expansion = 2, secord = False, soadd = 0.01, dil = 1, deform = 0, sqex = 0, mapsize = None, ratt=0):
         super(NeXtBottleneck, self).__init__()
         self.secord = secord
         self.soadd = soadd
@@ -119,6 +119,7 @@ class NeXtBottleneck(nn.Module):
         self.expansion = expansion
         self.deform = deform
         self.sqex = sqex
+        self.ratt = ratt
         
         # Deformable Plugin
         if self.deform>0:
@@ -148,6 +149,9 @@ class NeXtBottleneck(nn.Module):
             self.fc31 = nn.Linear(int(planes*expansion), planes)
             self.fc32 = nn.Linear(planes, int(planes*expansion))
             self.sigmoid = nn.Sigmoid()
+            
+            self.conv41 = nn.Conv2d(int(planes * expansion),int(planes * expansion), kernel_size=1, groups=1, bias=False)
+            self.conv42 = nn.Conv2d(int(planes * expansion), 1, kernel_size=1, groups=1, bias=False)
             
 
         # Side(Attention Branch)
@@ -195,8 +199,18 @@ class NeXtBottleneck(nn.Module):
             out_sqex = self.fc31(out_sqex.view(out_sqex.size(0),-1))
             out_sqex = self.fc32(out_sqex)
             out_sqex = self.sigmoid(out_sqex)
+            
+            if self.ratt:
+                out_ratt = self.conv41(out)
+                out_ratt = self.conv42(out_ratt)
+                out_ratt = self.sigmoid(out_ratt)
+            
+            #print out_ratt.size()
+            
             out = out * out_sqex.view(-1, int(self.planes * self.expansion),1,1)
             
+            if self.ratt:
+                out = out * out_ratt
             
             
         if not self.secord:
@@ -418,7 +432,7 @@ class ResNeXt(nn.Module):
                 lastout = 7 , num_classes=1000, upgroup = False, downgroup = False, \
                 cifar = False , multiway = 0, L1mode = False, changeloss = False, expansion = 2,\
                  secord = False, soadd = 0.01, att = False, dilpat = '', deform = 0, fixx = 1, 
-                 sqex = 0,
+                 sqex = 0, ratt = 0,
                  taskmode='CLS', **kwargs):
         self.lastout = lastout
         self.inplanes = 64
@@ -437,6 +451,7 @@ class ResNeXt(nn.Module):
         self.deform = deform
         self.fixx = fixx
         self.sqex = sqex
+        self.ratt = ratt
         self.taskmode = taskmode
         
         if taskmode == 'CLS':
@@ -504,16 +519,17 @@ class ResNeXt(nn.Module):
         #if self.verticalfrac==False:
         self.layer1 = self._make_layer(block, int(wider * 128), layers[0], finer = finerList[0],\
                                        upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, deeplabdil = 1, deform = 0,
-                                       sqex = sqex, mapsize = cur_mapsize)
+                                       sqex = sqex, mapsize = cur_mapsize, ratt = ratt)
         self.layer2 = self._make_layer(block, int(wider * 256), layers[1], stride=STRIDE_SERIES[0], finer = finerList[1],\
                                        upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, 
-                                       deeplabdil = dilate_plan[0], deform = 0, sqex = sqex, mapsize = cur_mapsize / 2 )
+                                       deeplabdil = dilate_plan[0], deform = 0, sqex = sqex, mapsize = cur_mapsize / 2 ,
+                                       ratt = ratt)
         
         if self.cifar:
             
             self.layer3 = self._make_layer(block, int(wider * 512), layers[2], stride=STRIDE_SERIES[1], finer = finerList[2],\
                                        upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, deeplabdil = dilate_plan[1],
-                                       deform = deform, sqex = sqex, mapsize = cur_mapsize / 4 )  
+                                       deform = deform, sqex = sqex, mapsize = cur_mapsize / 4, ratt = ratt )  
             
             self.finaloutplane = int(wider*512*expansion)
             
@@ -522,14 +538,14 @@ class ResNeXt(nn.Module):
             self.layer3 = self._make_layer(block, int(wider * 512), layers[2], stride=STRIDE_SERIES[1], finer = finerList[2],\
                                        upgroup = upgroup, downgroup = downgroup, dilpat = dilpat,
                                        deeplabdil = dilate_plan[1], deform = 0,
-                                       sqex = sqex, mapsize = cur_mapsize / 4 )
+                                       sqex = sqex, mapsize = cur_mapsize / 4, ratt = ratt )
         
             # Possible We May Use wider * 1024 * (2 if deform else 1)
         
             self.layer4 = self._make_layer(block, int(wider * 1024), layers[3], stride=STRIDE_SERIES[2], finer = finerList[3], \
                                        upgroup = upgroup, downgroup = downgroup, dilpat = dilpat, 
                                        deeplabdil = dilate_plan[2], deform = deform, 
-                                       sqex = sqex, mapsize = cur_mapsize / 8 )
+                                       sqex = sqex, mapsize = cur_mapsize / 8 , ratt = ratt)
             
             self.finaloutplane = int(wider*1024*expansion)
 
@@ -577,7 +593,7 @@ class ResNeXt(nn.Module):
                 m.bias.data.zero_()
 
     def _make_layer(self, block, planes, blocks, stride=1, finer=1, upgroup=False, downgroup=False, \
-                    dilpat = '', deeplabdil = 1 , deform = 0,  sqex = 0, mapsize = None):
+                    dilpat = '', deeplabdil = 1 , deform = 0,  sqex = 0, mapsize = None, ratt = 0):
         '''
         downsample = None
 
@@ -622,13 +638,13 @@ class ResNeXt(nn.Module):
         
         layers.append(block(self.inplanes, planes, stride, downsample, finer, upgroup=upgroup, downgroup=downgroup,\
                            expansion = self.expansion, secord = self.secord, soadd = self.soadd, dil = dilate_plan[0],\
-                           deform = self.deform, sqex = self.sqex, mapsize = mapsize))
+                           deform = self.deform, sqex = self.sqex, mapsize = mapsize, ratt = self.ratt))
 
         self.inplanes = int(planes * self.expansion)
         for i in range(1, blocks):
             layers.append(block(self.inplanes, planes, finer=finer, upgroup=upgroup, downgroup=downgroup, \
                            expansion = self.expansion, secord = self.secord, soadd = self.soadd, dil = dilate_plan[i],\
-                           deform = self.deform, sqex = self.sqex, mapsize = mapsize))
+                           deform = self.deform, sqex = self.sqex, mapsize = mapsize, ratt = self.ratt))
 
         if self.verticalfrac == False:
             return nn.Sequential(*layers)
@@ -1189,7 +1205,8 @@ def resnext50(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = False, d
 
 
 def resnext29_cifar10(pretrained=False, lastout=8, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False,\
-                              L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0, fixx = 1, sqex = 0,  **kwargs):
+                              L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0, fixx = 1, sqex = 0, \
+                              ratt = 0, **kwargs):
     """Constructs a ResNeXt-29 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet??
@@ -1203,7 +1220,8 @@ def resnext29_cifar10(pretrained=False, lastout=8, expansion = 4, x = 32, d = 4,
     
     model = ResNeXt(B, [3, 3, 3], cifar=True, lastout=lastout, wider = wider , finer= finer, num_classes=10, \
                     upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion = expansion, \
-                    secord = secord, soadd = soadd, att= att, deform = deform, fixx = fixx, sqex = sqex , **kwargs)
+                    secord = secord, soadd = soadd, att= att, deform = deform, fixx = fixx, sqex = sqex , ratt = ratt, \
+                    **kwargs)
 
     return model
 
@@ -1239,7 +1257,8 @@ def resnext_cifar100(pretrained=False, numlayers=29, lastout=8, expansion = 4, x
 
 
 def resnext29_cifar100(pretrained=False, lastout=8, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
-                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0, fixx = 1, sqex = 0, **kwargs):
+                           L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0, fixx = 1, sqex = 0, \
+                           ratt = 0 , **kwargs):
     
     """Constructs a ResNeXt-50 Expansion=8 model.
     Args:
@@ -1253,7 +1272,8 @@ def resnext29_cifar100(pretrained=False, lastout=8, expansion = 4, x = 32, d = 4
 
     model = ResNeXt(B, [3, 3, 3], cifar=True, lastout = lastout , wider = wider , finer= finer, num_classes=100, \
                     upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion=expansion, \
-                    secord = secord, soadd = soadd, att = att, deform = deform,  fixx=fixx,  sqex = sqex,  **kwargs)
+                    secord = secord, soadd = soadd, att = att, deform = deform,  fixx=fixx,  sqex = sqex, \
+                    ratt = ratt, **kwargs)
 
     return model
 
