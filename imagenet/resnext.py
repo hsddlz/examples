@@ -1189,7 +1189,7 @@ def resnext50(pretrained=False, expansion = 4, x = 32, d = 4, upgroup = False, d
 
 
 def resnext29_cifar10(pretrained=False, lastout=8, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False,\
-                              L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0, fixx = 1,  **kwargs):
+                              L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0, fixx = 1, sqex = 0,  **kwargs):
     """Constructs a ResNeXt-29 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet??
@@ -1203,7 +1203,7 @@ def resnext29_cifar10(pretrained=False, lastout=8, expansion = 4, x = 32, d = 4,
     
     model = ResNeXt(B, [3, 3, 3], cifar=True, lastout=lastout, wider = wider , finer= finer, num_classes=10, \
                     upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion = expansion, \
-                    secord = secord, soadd = soadd, att= att, deform = deform, fixx = fixx, **kwargs)
+                    secord = secord, soadd = soadd, att= att, deform = deform, fixx = fixx, sqex = sqex , **kwargs)
 
     return model
 
