@@ -146,8 +146,8 @@ class NeXtBottleneck(nn.Module):
         
         if self.sqex > 0:
             self.pool3 = nn.AvgPool2d(mapsize, stride=None, padding=0, ceil_mode=False, count_include_pad=True)
-            self.fc31 = nn.Linear(int(planes*expansion), planes)
-            self.fc32 = nn.Linear(planes, int(planes*expansion))
+            self.fc31 = nn.Linear(int(planes*expansion), int(planes*expansion))
+            self.fc32 = nn.Linear(int(planes*expansion), int(planes*expansion))
             self.sigmoid = nn.Sigmoid()
             
             self.conv41 = nn.Conv2d(int(planes * expansion),int(planes * expansion), kernel_size=1, groups=1, bias=False)
@@ -184,12 +184,12 @@ class NeXtBottleneck(nn.Module):
         out = self.conv2(out)
         
         out = self.bn2(out)
+        
         out = self.relu(out)
         #out = self.A(self.relu(out))
-        
         out = self.conv3(out)
-        
         out = self.bn3(out)
+
 
         if self.downsample is not None:
             residual = self.downsample(x)
