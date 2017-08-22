@@ -200,14 +200,14 @@ class NeXtBottleneck(nn.Module):
             out_sqex = self.fc32(out_sqex)
             out_sqex = self.sigmoid(out_sqex)
             
+            out = out * out_sqex.view(-1, int(self.planes * self.expansion),1,1)
+            
             if self.ratt:
                 out_ratt = self.conv41(out)
                 out_ratt = self.conv42(out_ratt)
                 out_ratt = self.sigmoid(out_ratt)
             
             #print out_ratt.size()
-            
-            out = out * out_sqex.view(-1, int(self.planes * self.expansion),1,1)
             
             if self.ratt:
                 out = out * out_ratt
