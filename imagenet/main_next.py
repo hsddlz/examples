@@ -517,9 +517,9 @@ def train(train_loader, model, criterion, optimizer, epoch):
         elif args.labelnocompete > 0:
             
             rawvec = output[:,:args.nclass] * target_var
-            rawvecnorm = 1.0 / torch.sqrt(torch.sum(rawvec ** 2,1))
+            rawvecnorm = torch.sqrt(torch.sum(rawvec ** 2,1, keepdim=True))
             print rawvec.size(), rawvecnorm.size()
-            rawvec = rawvec * rawvecnorm # Feature Norm
+            rawvec = rawvec / rawvecnorm # Feature Norm
             rawveck = - rawvec + torch.log(torch.exp(rawvec)+1.0)
             lossvec = torch.sum(rawveck, 1)
             loss = torch.mean(lossvec)
