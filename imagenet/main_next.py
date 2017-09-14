@@ -202,7 +202,8 @@ def main():
                                          upgroup = True if args.ug else False, downgroup = True if args.dg else False,\
                                          secord = True if args.secord else False, soadd = args.soadd, \
                                          att = True if args.att else False, lastout = args.lastout, dilpat = args.dp, \
-                                         deform = args.df, fixx = args.fixx, sqex = args.sqex , ratt = args.ratt )
+                                         deform = args.df, fixx = args.fixx, sqex = args.sqex , ratt = args.ratt, \
+                                         nocompete = args.labelnocompete)
         
     else:
         print("=> creating model '{}'".format(args.arch))
@@ -211,7 +212,8 @@ def main():
                                          upgroup = True if args.ug else False, downgroup = True if args.dg else False,\
                                          secord = True if args.secord else False, soadd = args.soadd, \
                                          att = True if args.att else False, lastout = args.lastout, dilpat = args.dp,
-                                         deform = args.df, fixx = args.fixx , sqex = args.sqex , ratt = args.ratt )
+                                         deform = args.df, fixx = args.fixx , sqex = args.sqex , ratt = args.ratt ,\
+                                         nocompete = args.labelnocompete)
         #print("args.df: {}".format(args.df))
     
     
@@ -441,13 +443,23 @@ def train(train_loader, model, criterion, optimizer, epoch):
         # measure data loading time
         data_time.update(time.time() - end)
         #print type(target.float())
-        if 'L1' in args.arch or args.L1==1 or args.labelboost>1e-6 or args.focal>0 or args.labelnocompete>0:
+        if 'L1' in args.arch or args.L1==1 or args.labelboost>1e-6 or args.focal>0:
             targetTensor = np.zeros((input.size()[0], args.nclass))
-            if args.labelnocompete:
-                targetTensor = targetTensor - 1.0
             for j in range(input.size()[0]):
                 targetTensor[j, target[j]] = 1.0
             #targetTensor = targetTensor[:input.size[0],:input.size[1]]
+            targetTensor = torch.FloatTensor(targetTensor)
+            targetTensor = targetTensor.cuda(async=True)
+            target = target.cuda(async=True)
+            target_var = torch.autograd.Variable(targetTensor)
+            
+        elif args.labelnocompete>0:
+            targetTensor = np.concatenate([ np.zeros((input.size()[0], args.nclass)) ,\
+                                           np.ones((input.size()[0], args.nclass))], \
+                                          axis=1)
+            for j in range(input.size()[0]):
+                targetTensor[j, target[j]] = 1.0
+                targetTensor[j, target[j] + args.nclass] = 0.0
             targetTensor = torch.FloatTensor(targetTensor)
             targetTensor = targetTensor.cuda(async=True)
             target = target.cuda(async=True)
@@ -514,15 +526,17 @@ def train(train_loader, model, criterion, optimizer, epoch):
             OneMinusPToGamma = (1.0 - torch.sum(outp * target_var ,1 ))**2
             LogP = torch.sum(- outq * target_var, 1)
             loss = torch.mean(torch.mul(OneMinusPToGamma, LogP))
+            
         elif args.labelnocompete > 0:
             
-            rawvec = output[:,:args.nclass] * target_var
-            rawvecnorm = torch.sqrt(torch.sum(rawvec ** 2,1, keepdim=True))
-            #print rawvec.size(), rawvecnorm.size()
-            rawvec = rawvec / rawvecnorm # Feature Norm
-            rawveck = - rawvec + torch.log(torch.exp(rawvec)+1.0)
-            lossvec = torch.sum(rawveck, 1)
-            loss = torch.mean(lossvec)
+            isout =  output[:,:args.nclass]
+            notout = output[:,args.nclass:args.nclass*2]
+            islabel = target_var[:,:args.nclass]
+            notlabel = target_var[:,args.nclass:args.nclass*2]
+            outdiv = torch.log(torch.exp(isout)+torch.exp(notout))
+            isoutq = outdiv - isout
+            notoutq = outdiv - notout
+            loss = torch.mean(torch.sum(islabel * isoutq + notlabel * notoutq, 1))
             
             
             """

@@ -432,7 +432,7 @@ class ResNeXt(nn.Module):
                 lastout = 7 , num_classes=1000, upgroup = False, downgroup = False, \
                 cifar = False , multiway = 0, L1mode = False, changeloss = False, expansion = 2,\
                  secord = False, soadd = 0.01, att = False, dilpat = '', deform = 0, fixx = 1, 
-                 sqex = 0, ratt = 0,
+                 sqex = 0, ratt = 0, nocompete=0,
                  taskmode='CLS', **kwargs):
         self.lastout = lastout
         self.inplanes = 64
@@ -452,6 +452,7 @@ class ResNeXt(nn.Module):
         self.fixx = fixx
         self.sqex = sqex
         self.ratt = ratt
+        self.nocompete = nocompete
         self.taskmode = taskmode
         
         if taskmode == 'CLS':
@@ -568,7 +569,8 @@ class ResNeXt(nn.Module):
 
             self.avgpool = nn.AvgPool2d(lastout)
             if multiway <= 0:
-                self.fc = nn.Linear(int(wider * 1024 * self.expansion * fc_multiple), num_classes)
+                self.fc = nn.Linear(int(wider * 1024 * self.expansion * fc_multiple), num_classes * \
+                                    (2 if self.nocompete else 1) )
             else:
                 for i in range(multiway):
                     exec('self.fc_{0} = nn.Linear( int(wider*1024*self.expansion * fc_multiple), num_classes)'.format(i))
@@ -1258,7 +1260,7 @@ def resnext_cifar100(pretrained=False, numlayers=29, lastout=8, expansion = 4, x
 
 def resnext29_cifar100(pretrained=False, lastout=8, expansion = 4, x = 32, d = 4, upgroup = False, downgroup = False, \
                            L1mode=False, secord = 0, soadd = 0.01, att = False, deform = 0, fixx = 1, sqex = 0, \
-                           ratt = 0 , **kwargs):
+                           ratt = 0 , nocompete = 0,  **kwargs):
     
     """Constructs a ResNeXt-50 Expansion=8 model.
     Args:
@@ -1273,7 +1275,7 @@ def resnext29_cifar100(pretrained=False, lastout=8, expansion = 4, x = 32, d = 4
     model = ResNeXt(B, [3, 3, 3], cifar=True, lastout = lastout , wider = wider , finer= finer, num_classes=100, \
                     upgroup=upgroup, downgroup=downgroup, L1mode=L1mode, expansion=expansion, \
                     secord = secord, soadd = soadd, att = att, deform = deform,  fixx=fixx,  sqex = sqex, \
-                    ratt = ratt, **kwargs)
+                    ratt = ratt, nocompete = nocompete, **kwargs)
 
     return model
 
