@@ -115,6 +115,8 @@ parser.add_argument('--labelsm' , default=0, type=int,
 parser.add_argument('--labelboost' , default=0., type=float,
                    metavar='N', help='Label Boosting')
 
+parser.add_argument('--labelnocompete' , default=0, type=int,
+                   metavar='N', help=' Not Competing Label')
 
 parser.add_argument('--focal' , default=0, type=int,
                    metavar='N', help='Use Focal Loss, By Kaiming He')
@@ -439,8 +441,10 @@ def train(train_loader, model, criterion, optimizer, epoch):
         # measure data loading time
         data_time.update(time.time() - end)
         #print type(target.float())
-        if 'L1' in args.arch or args.L1==1 or args.labelboost>1e-6 or args.focal>0:
+        if 'L1' in args.arch or args.L1==1 or args.labelboost>1e-6 or args.focal>0 or args.labelnocompete>0:
             targetTensor = np.zeros((input.size()[0], args.nclass))
+            if args.labelnocompete:
+                targetTensor = targetTensor - 1.0
             for j in range(input.size()[0]):
                 targetTensor[j, target[j]] = 1.0
             #targetTensor = targetTensor[:input.size[0],:input.size[1]]
@@ -510,6 +514,12 @@ def train(train_loader, model, criterion, optimizer, epoch):
             OneMinusPToGamma = (1.0 - torch.sum(outp * target_var ,1 ))**2
             LogP = torch.sum(- outq * target_var, 1)
             loss = torch.mean(torch.mul(OneMinusPToGamma, LogP))
+        elif args.labelnocompete > 0:
+            
+            rawvec = output[:,:args.nclass] * target_var
+            rawveck = - torch.log(torch.exp(rawvec)/(torch.exp(rawvec)+1.0)
+            lossvec = torch.sum(rawveck, 1)
+            loss = torch.mean(lossvec)
             
             
             """
