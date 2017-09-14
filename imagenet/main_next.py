@@ -518,7 +518,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
             
             rawvec = output[:,:args.nclass] * target_var
             rawvecnorm = torch.sqrt(torch.sum(rawvec ** 2,1, keepdim=True))
-            print rawvec.size(), rawvecnorm.size()
+            #print rawvec.size(), rawvecnorm.size()
             rawvec = rawvec / rawvecnorm # Feature Norm
             rawveck = - rawvec + torch.log(torch.exp(rawvec)+1.0)
             lossvec = torch.sum(rawveck, 1)
