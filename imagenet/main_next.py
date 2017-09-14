@@ -528,7 +528,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
             loss = torch.mean(torch.mul(OneMinusPToGamma, LogP))
             
         elif args.labelnocompete > 0:
-            
+            '''
             isout =  output[:,:args.nclass]
             notout = output[:,args.nclass:args.nclass*2]
             islabel = target_var[:,:args.nclass]
@@ -537,6 +537,10 @@ def train(train_loader, model, criterion, optimizer, epoch):
             isoutq = outdiv - isout
             notoutq = outdiv - notout
             loss = torch.mean(torch.sum(islabel * isoutq + notlabel * notoutq, 1))
+            '''
+            
+            outq = nn.LogSoftmax()(output[:, :args.nclass*2])
+            loss = torch.mean(torch.sum( -outq * target_var, 1))
             
             
             """
@@ -553,7 +557,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
             
 
         # measure accuracy and record loss
-        prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
+        prec1, prec5 = accuracy(output.data[:,:args.nclass], target, topk=(1, 5))
         losses.update(loss.data[0], input.size(0))
         top1.update(prec1[0], input.size(0))
         top5.update(prec5[0], input.size(0))
