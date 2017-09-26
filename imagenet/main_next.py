@@ -39,7 +39,8 @@ resnext_models = {'resnext50':resnext.resnext50,
                   'resnext_inaturalist':resnext.resnext_inaturalist,
                   'resnext38_inaturalist':resnext.resnext38_inaturalist,
                   'resnext50_inaturalist':resnext.resnext50_inaturalist,
-                  'resnext50_cub200':resnext.resnext50_cub200}
+                  'resnext50_cub200':resnext.resnext50_cub200,
+                  'resnext50_cai80':resnext.resnext50_cai80}
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
@@ -433,6 +434,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
     data_time = AverageMeter()
     losses = AverageMeter()
     top1 = AverageMeter()
+    top3 = AverageMeter()
     top5 = AverageMeter()
 
     # switch to train mode
@@ -539,8 +541,8 @@ def train(train_loader, model, criterion, optimizer, epoch):
             loss = torch.mean(torch.sum(islabel * isoutq + notlabel * notoutq, 1))
             '''
             
-            outq = nn.LogSoftmax()(output[:, :args.nclass*2])
-            loss = torch.mean(torch.sum( -outq * target_var, 1))
+            outq = nn.LogSoftmax()(torch.cat([output[:, :args.nclass],-output[:,:args.nclass]],1))
+            loss = torch.mean(torch.sum( (-outq * target_var)[:,:args.nclass], 1))
             
             
             """
@@ -557,9 +559,10 @@ def train(train_loader, model, criterion, optimizer, epoch):
             
 
         # measure accuracy and record loss
-        prec1, prec5 = accuracy(output.data[:,:args.nclass], target, topk=(1, 5))
+        prec1, prec3, prec5 = accuracy(output.data[:,:args.nclass], target, topk=(1, 3, 5))
         losses.update(loss.data[0], input.size(0))
         top1.update(prec1[0], input.size(0))
+	top3.update(prec3[0], input.size(0))
         top5.update(prec5[0], input.size(0))
 
         # compute gradient and do SGD step
@@ -577,15 +580,17 @@ def train(train_loader, model, criterion, optimizer, epoch):
                   'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                   'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+                  'Prec@3 {top3.val:.3f} ({top3.avg:.3f})\t'
                   'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
                    epoch, i, len(train_loader), batch_time=batch_time,
-                   data_time=data_time, loss=losses, top1=top1, top5=top5))
+                   data_time=data_time, loss=losses, top1=top1, top3=top3, top5=top5))
 
 
 def validate(val_loader, model, criterion):
     batch_time = AverageMeter()
     losses = AverageMeter()
     top1 = AverageMeter()
+    top3 = AverageMeter()
     top5 = AverageMeter()
 
     # switch to evaluate mode
@@ -647,9 +652,10 @@ def validate(val_loader, model, criterion):
             loss = criterion(output, target_var)
 
         # measure accuracy and record loss
-        prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
+        prec1, prec3, prec5 = accuracy(output.data[:,:args.nclass], target, topk=(1, 3, 5))
         losses.update(loss.data[0], input.size(0))
         top1.update(prec1[0], input.size(0))
+        top3.update(prec3[0], input.size(0))
         top5.update(prec5[0], input.size(0))
 
         # measure elapsed time
@@ -661,12 +667,13 @@ def validate(val_loader, model, criterion):
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                   'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+                  'Prec@3 {top3.val:.3f} ({top3.avg:.3f})\t'
                   'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
                    i, len(val_loader), batch_time=batch_time, loss=losses,
-                   top1=top1, top5=top5))
+                   top1=top1, top3=top3, top5=top5))
 
-    print(' * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}'
-          .format(top1=top1, top5=top5))
+    print(' * Prec@1 {top1.avg:.3f} Prec@3 {top3.avg:.3f} Prec@5 {top5.avg:.3f}'
+          .format(top1=top1, top3=top3,  top5=top5))
 
     return top1.avg
 
